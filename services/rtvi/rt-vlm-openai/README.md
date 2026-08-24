@@ -1,0 +1,48 @@
+# OpenAI RT-VLM Compatibility Service
+
+This service is an independently buildable replacement for the stored-video portion of VSS RT-VLM. It uploads video
+files, splits them into time-based chunks, extracts ordered JPEG frames with FFmpeg, calls an OpenAI-compatible
+multimodal Chat Completions endpoint, and returns the RT-VLM caption response over REST or SSE.
+
+Supported endpoints:
+
+- `GET /v1/health/ready` and `GET /v1/health/live`
+- `GET /v1/models`
+- `POST /v1/files`, `GET /v1/files`, and `DELETE /v1/files/{id}`
+- `POST /v1/generate_captions`
+
+This first version intentionally does not implement RTSP, Kafka/NvSchema publishing, URL ingestion, audio, embeddings,
+or the OpenAI-compatible `/v1/chat/completions` facade.
+
+## Run locally
+
+```bash
+cd services/rtvi/rt-vlm-openai
+export OPENAI_API_KEY=<key>
+export VIA_VLM_OPENAI_MODEL_DEPLOYMENT_NAME=<multimodal-model-id>
+uv run --extra dev uvicorn rt_vlm_openai.app:app --host 0.0.0.0 --port 8018
+```
+
+For a non-OpenAI provider exposing the same API, also set `VIA_VLM_ENDPOINT` and optionally `VIA_VLM_API_KEY`.
+
+## Build and use with the VSS Compose stack
+
+```bash
+docker build -t vss-rt-vlm-openai:local services/rtvi/rt-vlm-openai
+
+export RTVI_VLM_IMAGE=vss-rt-vlm-openai:local
+export RTVI_VLM_MODEL_TO_USE=openai-compat
+export VLM_NAME=<multimodal-model-id>
+export OPENAI_API_KEY=<key>
+```
+
+Then start the normal `lvs` profile with its remote-VLM configuration. The shared Compose service accepts
+`RTVI_VLM_IMAGE` as an image override. The container retains the service name and port expected by LVS.
+
+## Test
+
+```bash
+cd services/rtvi/rt-vlm-openai
+uv run --extra dev pytest
+uv run --extra dev ruff check .
+```

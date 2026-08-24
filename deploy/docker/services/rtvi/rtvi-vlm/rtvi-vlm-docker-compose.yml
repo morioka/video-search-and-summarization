@@ -18,7 +18,7 @@
 services:
   rtvi-vlm:
     # for release, change this to the versioned image from the registry
-    image: nvcr.io/nvidia/vss-core/vss-rt-vlm:${RTVI_VLM_IMAGE_TAG:-3.2.1}
+    image: ${RTVI_VLM_IMAGE:-nvcr.io/nvidia/vss-core/vss-rt-vlm:${RTVI_VLM_IMAGE_TAG:-3.2.1}}
     container_name: vss-rtvi-vlm
     user: "1001:1001"
     shm_size: '16gb'
@@ -42,6 +42,7 @@ services:
       VIA_VLM_OPENAI_MODEL_DEPLOYMENT_NAME: "${VLM_NAME:-}"
       VIA_VLM_ENDPOINT: "${RTVI_VLM_ENDPOINT:-}"
       VIA_VLM_API_KEY: "${RTVI_VLM_API_KEY:-${NGC_CLI_API_KEY:-}}"
+      RTVI_OPENAI_ASSET_DIR: "${RTVI_OPENAI_ASSET_DIR:-/tmp/rt-vlm-openai-assets}"
       VLM_BATCH_SIZE: "${RTVI_VLM_BATCH_SIZE:-}"
       VLM_INPUT_WIDTH: "${RTVI_VLM_INPUT_WIDTH:-}"
       VLM_INPUT_HEIGHT: "${RTVI_VLM_INPUT_HEIGHT:-}"

@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "vss-rt-vlm-openai"
+version = "0.1.0"
+description = "OpenAI-backed compatibility implementation of the VSS RT-VLM file API"
+requires-python = ">=3.10"
+dependencies = [
+  "fastapi==0.129.0",
+  "openai==2.24.0",
+  "pydantic==2.12.5",
+  "python-multipart>=0.0.27",
+  "uvicorn==0.41.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "httpx>=0.28.0",
+  "pytest==8.4.2",
+  "pytest-asyncio>=0.24.0",
+  "ruff>=0.12.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/rt_vlm_openai"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
