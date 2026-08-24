@@ -373,6 +373,9 @@ EOF
   mkdir -p "$sdd/camInfo"
   rm -f "$sdd/camInfo"/*.yml
   cp -a "$RTCV/generated/camInfo/." "$sdd/camInfo/"
+  # Per-dataset stash, same reason as camInfo: generated/ is shared and holds
+  # whichever dataset was synced last, so the launcher must not read from it.
+  cp "$RTCV/generated/pub_sub_info_config.yml" "$sdd/pub_sub_info_config.yml"
   # calibration.json, images/ and camInfo/ are all bind-mounted into
   # containers running as a non-root user (warehouse-mv3dt-app.yml).
   chmod -R o+rX "$sdd"

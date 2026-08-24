@@ -73,6 +73,24 @@ preflight() {
     blueprint)  caminfo="$WHBP_APP/calibration/sample-data/$DS_NAME/camInfo" ;;
   esac
   staged=$(ls -1 "$caminfo"/*.yml 2>/dev/null | wc -l | tr -d ' ')
+
+  # generated/ is a single staging area that sync overwrites per dataset, so
+  # after `sync all` it holds whichever dataset came last in the registry. sync
+  # also keeps a per-dataset copy under standalone/datasets/<alias>/, so
+  # activate that rather than making the user re-sync the one they just named.
+  if [ "$tgt" = standalone ] && [ "$staged" != "$NUM" ]; then
+    local sd="$STANDALONE/datasets/$DS_ALIAS"
+    if [ "$(ls -1 "$sd/camInfo"/*.yml 2>/dev/null | wc -l | tr -d ' ')" = "$NUM" ]; then
+      echo "  generated/ held $staged camera(s) — activating $DS_ALIAS"
+      mkdir -p "$caminfo"; rm -f "$caminfo"/*.yml
+      cp -a "$sd/camInfo/." "$caminfo/"
+      [ -f "$sd/pub_sub_info_config.yml" ] \
+        && cp "$sd/pub_sub_info_config.yml" "$RTCV/generated/pub_sub_info_config.yml"
+      chmod -R o+rX "$RTCV/generated"
+      staged="$NUM"
+    fi
+  fi
+
   [ "$staged" != 0 ] || die "no camInfo staged — run ./setup-data.sh sync $target"
   [ "$staged" = "$NUM" ] \
     || die "camInfo has $staged camera(s), $DS_NAME has $NUM — run ./setup-data.sh sync $target"
@@ -86,6 +104,18 @@ vst() { ( cd "$STANDALONE/pipeline1" && DATASET="$1" ./vst-stack.sh "$2" ); }
 
 standalone_up() {
   preflight standalone "$1"
+
+  # The OSD sink is EGL: it needs a display backed by the GPU. Over SSH X11
+  # forwarding it cannot create a GL context, so the pipeline never reaches
+  # PAUSED and the app exits — leaving add-streams.sh to wait its full 600s for
+  # a container that is already gone. Refuse early instead.
+  if [ "$OSD" = 1 ] && [ "${ALLOW_REMOTE_OSD:-0}" != 1 ]; then
+    if [ -z "${DISPLAY:-}" ]; then
+      die "OSD=1 needs a display but DISPLAY is unset. Drop OSD=1, or use SAVE_VIDEO=1 INPUT_MODE=file for a headless recording (DEPLOY.md §4.3)."
+    elif [ -n "${SSH_CONNECTION:-}" ] && [[ "$DISPLAY" == localhost:* ]]; then
+      die "OSD=1 with DISPLAY=$DISPLAY is an SSH-forwarded display; the EGL sink cannot render there and perception will exit. Drop OSD=1, or use SAVE_VIDEO=1 INPUT_MODE=file (DEPLOY.md §4.3). Override with ALLOW_REMOTE_OSD=1 if you know this display is GPU-backed."
+    fi
+  fi
 
   step "Configuring $DS_NAME ($NUM cameras)"
   local out
@@ -147,7 +177,10 @@ blueprint_up() {
   preflight blueprint "$target"
 
   step "Configuring the blueprint for $DS_NAME"
-  cp "$RTCV/generated/pub_sub_info_config.yml" "$DSC/pub_sub_info_config.yml"
+  local sdd="$WHBP_APP/calibration/sample-data/$DS_NAME"
+  [ -f "$sdd/pub_sub_info_config.yml" ] \
+    || die "no pub/sub staged for $DS_NAME — run ./setup-data.sh sync $target"
+  cp "$sdd/pub_sub_info_config.yml" "$DSC/pub_sub_info_config.yml"
   local entries; entries=$(video_stems "$DS_VIDEOS" | while read -r c; do
     printf '    %s: /tmp/camInfo/%s.yml\n' "$c" "$c"; done)
   awk -v entries="$entries" '

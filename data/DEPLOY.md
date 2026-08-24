@@ -253,6 +253,8 @@ It then prints the launch command for each deployment. `sync` stages data and st
 
 `sync` always stages both layouts. If the testbed has not been cloned it says so and stages the blueprint half alone — the two are independent.
 
+Each dataset also gets its own copy of `camInfo/` and `pub_sub_info_config.yml` in both trees. The generators write to one shared area (`generated/`), so those per-dataset copies are what let you stage everything once with `sync all` and then launch any of them without re-syncing.
+
 ### 3.2 What sync will and will not overwrite
 
 - **Never writes to a registry source.** When a dataset's `calibration:` resolves to the very file `sync` would stage — which is what `calibration: whbp` means, the source being the committed copy under `warehouse-mv3dt-app` — it is left untouched and any divergence is reported instead. Otherwise one missing clip would overwrite the source with a subset and destroy it, since the next run subsets the already-subset file.
@@ -321,11 +323,11 @@ Anything already exported in your shell **wins** over `docker/.env`, for both `s
 
 ```bash
 cd "$DATA"
-OSD=1 ./launch-deployment.sh standalone up 4cam     # or 12cam / 28cam / 145cam
+OSD=1 DISPLAY=:1 ./launch-deployment.sh standalone up 145cam # 4cams, 12cam, 28cam, 145cam
 ./launch-deployment.sh standalone down              # component + testbed
 ```
 
-That runs the whole sequence: writes the dataset-derived keys into `docker/.env`, starts the synchronized streams, stages the DeepStream configs, brings up perception and BEV fusion, then registers the streams. It refuses if `generated/camInfo` holds a different dataset than the one you named — `generated/` is a single staging area, overwritten per dataset, so a stale camera map is easy to hit and silently fatal.
+That runs the whole sequence: writes the dataset-derived keys into `docker/.env`, starts the synchronized streams, stages the DeepStream configs, brings up perception and BEV fusion, then registers the streams. `generated/` is a single staging area that `sync` overwrites per dataset, so after `sync all` it holds whichever dataset came last in the registry. The launcher notices and activates the one you named from its per-dataset copy — you do not need to re-sync. It only refuses if that dataset was never synced at all.
 
 Env knobs: `OSD=1` for the live tiled window (needs a display and `xhost +`), `SAVE_VIDEO=1` for `video-output/grid-view.mkv`, `NO_FOLLOW=1` to skip tailing the log. The tuned tracker for 12cam is applied automatically — it comes from the registry's `tracker_config`.
 

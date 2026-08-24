@@ -34,6 +34,8 @@ services:
   perception:
     image: ${PERCEPTION_IMAGE:-nvcr.io/nvidia/vss-core/vss-rt-cv}:${PERCEPTION_TAG:-3.2.0}
     container_name: vss-rtvi-cv-mv3dt
+    # Temporary solution for different monitor configurations when using OSD.
+    privileged: true
     network_mode: host
     runtime: nvidia
     shm_size: "6gb"
@@ -73,6 +75,8 @@ services:
         condition: service_healthy
         required: false
     # Uncomment the following 2 lines docker logs shows "libEGL warning: egl: failed to create dri2 screen"
+    # This is a solution only for this particular case. 
+    # privilged:true above is the best workaround but it is not a good practice in general.
     # devices:
     #   - /dev/dri
 
