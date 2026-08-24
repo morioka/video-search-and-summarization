@@ -1,0 +1,108 @@
+# =============================================================================
+#  Dataset registry — single source of truth for both MV3DT deployments.
+#
+#  Consumed by setup-data.sh, which materializes each dataset into BOTH layouts:
+#
+#    standalone (component)   $VSS_REPO/standalone/datasets/<alias>/
+#    blueprint  (WHBP)        $VSS_REPO/deploy/docker/industry-profiles/
+#                               warehouse-operations/warehouse-mv3dt-app/
+#                               calibration/sample-data/<name>/
+#
+#  The two deployments disagree on dataset naming — standalone uses the short
+#  <alias>, the blueprint uses the long <name>. That mapping lives here and
+#  nowhere else.
+#
+#  MV3DT only. The 2d and 3d perception modes, and the datasets that exist just
+#  to feed them, are deliberately out of scope.
+#
+#  See DEPLOY.md for the full procedure.
+# =============================================================================
+
+version: 1
+
+# Path tokens usable in the fields below. setup-data.sh resolves them:
+#   ${APP_DATA}     $VSS_REPO/data/vss-warehouse-app-data        (NGC package)
+#   ${CUSTOM_DATA}  $VSS_REPO/data/vss-mv3dt-custom-datasets     (netapp share)
+#   ${STANDALONE}   $VSS_REPO/standalone                          (testbed clone)
+# `calibration: whbp` means the calibration already ships in the repo, under
+# warehouse-mv3dt-app/calibration/sample-data/<name>/.
+
+defaults:
+  # Object-model priors passed to generate_cam_info_configs.py, as
+  # "<classID> <height_m> <radius_m>" triples. 
+  # Warehouse RT-DETR classes:
+  # 0-2 person/humanoid, 3 cart, 4 box, 5 forklift.
+  class_specs: "0 1.60 0.3,1 1.60 0.3,2 1.60 0.3,3 0.48 0.3,4 0.2 0.52,5 2.2 0.9"
+  # MQTT pub/sub neighbour graph. Sparse beats the dense all-to-all fallback
+  # once camera counts grow. Forms: top_N:<K> | overlap_threshold:<T>
+  neighbor_criteria: "overlap_threshold:1e-6"
+
+datasets:
+
+  # ---------------------------------------------------------------------------
+  #  Ships in the NGC app-data package (nvidia/vss-warehouse/vss-warehouse-app-data)
+  # ---------------------------------------------------------------------------
+
+  - name: warehouse-4cams-20mx20m-synthetic
+    alias: 4cam
+    cameras: 4
+    origin: ngc
+    videos: ${APP_DATA}/videos/warehouse-4cams-20mx20m-synthetic
+    calibration: whbp
+    map: ${CUSTOM_DATA}/warehouse-4cams-20mx20m-synthetic/map.png
+    notes: >
+      The default MV3DT dataset, and the only one that works well with the
+      shipped tracker config. Its calibration is committed in this repo and its
+      videos ship in the NGC package, so a fresh machine needs neither GitLab nor
+      netapp for it — only the map is fetched from the share. The share also
+      carries archival copies of this dataset's videos and calibration for
+      completeness; they are NOT read by setup-data.sh, so editing them changes
+      nothing. The sources are the two paths above.
+
+  # ---------------------------------------------------------------------------
+  #  From the netapp share (//netapp-hq/handheld/ds_track)
+  # ---------------------------------------------------------------------------
+
+  - name: Simple_Warehouse_Synthetic_040424
+    alias: 12cam
+    cameras: 12
+    origin: netapp
+    videos: ${CUSTOM_DATA}/Simple_Warehouse_Synthetic_040424/videos
+    calibration: ${CUSTOM_DATA}/Simple_Warehouse_Synthetic_040424/calibration.json
+    map: ${CUSTOM_DATA}/Simple_Warehouse_Synthetic_040424/map.png
+    tracker_config: ${STANDALONE}/datasets/12cam/configs/ds-mv3dt-tracker-config.yml
+    notes: >
+      Runs without the tuned tracker config, but accuracy is poor with the
+      default — pass tracker_config. The clips must stay B-frame-free: perception
+      decodes with low-latency-mode=1 and does not reorder frames, so an IBBBP
+      source judders. Use the shipped -bf 0 re-encode as-is.
+
+  - name: MTMC_Warehouse_Synthetic_012424_28cam
+    alias: 28cam
+    cameras: 28
+    origin: netapp
+    videos: ${CUSTOM_DATA}/MTMC_Warehouse_Synthetic_012424_28cam/videos
+    calibration: ${CUSTOM_DATA}/MTMC_Warehouse_Synthetic_012424_28cam/calibration.json
+    map: ${CUSTOM_DATA}/MTMC_Warehouse_Synthetic_012424_28cam/map.png
+    notes: >
+      No tracker or pgie override — uses the sample configs, so the RT-DETR
+      engine is rebuilt at batch 28 on first run (budget a long wait). Most
+      likely run to be GPU-bound; throttle with the testbed's pipeline0
+      (STREAM_FPS) if it cannot hold 30 FPS.
+
+  - name: nv-warehouse-145cams
+    alias: 145cam
+    cameras: 145
+    subset: true
+    origin: netapp
+    videos: ${CUSTOM_DATA}/nv-warehouse-145cams/videos
+    calibration: ${CUSTOM_DATA}/nv-warehouse-145cams/calibration.json
+    map: ${CUSTOM_DATA}/nv-warehouse-145cams/map.png
+    notes: >
+      Calibration declares 145 sensors but only a handful of clips are normally
+      staged. subset:true makes setup-data.sh restrict the calibration it stages
+      to the sensors that actually have a matching .mp4 — without it camInfo
+      covers cameras that never produce frames and the tracker dies seconds into
+      the run, and the blueprint's behaviour analytics imports 137 sensors that
+      can never report. The full 145-sensor original stays here in the asset
+      tree, which is why it is the registry source rather than the repo copy.
