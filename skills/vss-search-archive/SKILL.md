@@ -88,7 +88,7 @@ index inventory is a snapshot.
 
 1. Confirm the selected deployment is the `search` profile. If required routes
    are unavailable, ask whether to reconnect or deploy it with
-   `vss-deploy-profile -p search`; do not target another profile.
+   `vss-build-vision-agent` stock Search workflow; do not target another profile.
 
 2. When the user names a file, camera, or sensor, list registered sources
    through the configured origin before invoking the search CLI. Accept only

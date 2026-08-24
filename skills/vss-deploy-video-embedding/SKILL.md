@@ -59,7 +59,7 @@ For **standalone RT-Embed**, work from the service directory:
 cd "{{repo_root}}/deploy/docker/services/rtvi/rtvi-embed"
 ```
 
-Do **not** use `/vss-deploy-profile` or `scripts/dev-profile.sh` for this standalone deployment.
+Do **not** use full-profile workflows (`/vss-build-vision-agent`) or `scripts/dev-profile.sh` for this standalone deployment.
 
 For agent-driven validation, never let `sudo` prompt interactively. Before any
 privileged ownership or Docker operation, use the non-interactive guard in
@@ -270,4 +270,3 @@ Full steps and cache warnings: [Tear Down](references/deploy-vss-deploy-video-em
 | [references/rest-api.md](references/rest-api.md) | Full REST endpoint catalog with worked `curl` examples for file uploads, video/text embeddings, live streams, and health/metrics. |
 | [references/environment.md](references/environment.md) | Complete environment-variable matrix, including host-to-container renames and secret-sensitive variables. |
 | [references/troubleshooting.md](references/troubleshooting.md) | Operational diagnostics for startup, model/cache, runtime, and observability issues. |
-
