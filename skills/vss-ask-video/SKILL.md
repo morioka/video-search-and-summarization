@@ -3,7 +3,7 @@ name: vss-ask-video
 description: Use this skill to ask a fresh visual question about a recorded video clip by calling a VLM endpoint directly (OpenAI-compatible chat/completions), including a user-confirmed vss-search-archive handoff with a pre-resolved bounded VIDEO_URL. Not for retrieval or metadata-answerable questions.
 license: Apache-2.0
 metadata:
-  version: "3.2.0"
+  version: "3.3.0"
   github-url: "https://github.com/NVIDIA-AI-Blueprints/video-search-and-summarization"
   tags: "nvidia blueprint operational"
 ---
@@ -137,6 +137,9 @@ VSS=(uv run --project "${VSS_REPO_ROOT}/services/agent" --no-dev --extra cli vss
 VSS_ORIGIN="${VSS_PUBLIC_URL:-http://${HOST_IP:-localhost}:7777}"
 "${VSS[@]}" configure --base-url "${VSS_ORIGIN%/}"
 ```
+
+The bootstrap above is only needed for Path B. Path A remains standalone and
+does not require a configured VSS deployment.
 
 Bootstrap detail, exit codes and the rules that go with them are in
 [AGENTS.md](../../AGENTS.md).
@@ -272,15 +275,29 @@ bare `/url` returns an **empty body**, and a window that is not in the recording
 path, or a `localhost` host the VLM's container cannot reach) and warms the lazy render, all of
 which this skill used to do by hand.
 
+**Full recording (no time context):** omit `--start-time`/`--end-time` and `vss vios clip`
+defaults to the covering recorded segment.
+
+**User gives a time context** ("at 00:12", "between 00:05 and 00:30"): pass
+`--start-time`/`--end-time` directly. When the window boundary is uncertain, run
+`vss vios timeline --sensor <name>` first to see the recorded ranges, then pick a window
+that falls inside one segment (a window spanning a gap returns `VMSNoDataError`).
+
 ```bash
 # Each block is its own shell; define what it uses.
 VSS=(uv run --project "${VSS_REPO_ROOT:-$HOME/video-search-and-summarization}/services/agent" --no-dev --extra cli vss)
 SENSOR_NAME='<the sensor name / filename stem the question named>'
 
-# One call: name → sensorId → main streamId → recorded range → normalised, warmed clip URL.
-# Endpoints come from the deployment `vss configure` recorded; this command takes none.
+# No time context — full recording:
 CLIP=$("${VSS[@]}" vios clip --sensor "${SENSOR_NAME}") || {
   echo "vss vios clip failed for '${SENSOR_NAME}' — do NOT answer from a local copy" >&2; exit 1; }
+
+# With a time context (e.g. user said "at 00:12" or "between 00:05 and 00:30"):
+#   CLIP=$("${VSS[@]}" vios clip --sensor "${SENSOR_NAME}" \
+#            --start-time "2025-01-01T00:00:05Z" --end-time "2025-01-01T00:00:30Z") || { ... }
+# If the recorded range is unknown, discover it first:
+#   "${VSS[@]}" vios timeline --sensor "${SENSOR_NAME}"
+
 
 VIDEO_URL=$(printf '%s' "${CLIP}" | jq -er '.media_url')
 CLIP_START=$(printf '%s' "${CLIP}" | jq -r '.start_time')
@@ -713,7 +730,7 @@ Return only the VLM's answer text to the user.
 - "Is the worker in `warehouse_safety_0001` wearing PPE?" → sensor name → VST/VIOS (Path B):
   resolve clip URL, call the VLM, return the answer.
 - "At what timestamp did the worker climb the ladder?" → same VST path; the answer includes a timestamp.
-- "What color is the truck at 00:12 in `dock_cam`?" → VST path; resolve the segment around 00:12, call the VLM.
+- "What color is the truck at 00:12 in `dock_cam`?" → Path B with `--start-time`/`--end-time` around 00:12; if the recorded range is unknown run `vss vios timeline --sensor dock_cam` first, then `vss vios clip --sensor dock_cam --start-time ... --end-time ...`, call the VLM.
 
 ---
 
