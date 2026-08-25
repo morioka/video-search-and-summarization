@@ -52,7 +52,7 @@ With default **`values.yaml`** and the mode values files, the stack requests **4
 | `vss-rtvi-cv` | 1 |
 | `vss-rtvi-vlm` | 1 |
 | `vss-vios-streamprocessing` | 1 |
-| `nvidia-nemotron-nano-9b-v2` (NIM) | 1 |
+| `nemotron-35-lightning-30b-a3b` (NIM) | 1 |
 | **Total** | **4** |
 
 ### Alert real-time (`values-realtime.yaml`)
@@ -61,7 +61,7 @@ With default **`values.yaml`** and the mode values files, the stack requests **4
 |----------|-----|
 | `vss-vios-streamprocessing` | 1 |
 | `vss-rtvi-vlm` | 1 |
-| `nvidia-nemotron-nano-9b-v2` (NIM) | 1 |
+| `nemotron-35-lightning-30b-a3b` (NIM) | 1 |
 | **Total** | **3** |
 
 
@@ -146,7 +146,7 @@ In **Description**, **Real-time (`values-realtime.yaml`)** notes which subcharts
 | **`global.storageClass`** | unset in repo **`values.yaml`** | Set in **`values-verification.yaml`** or **`values-realtime.yaml`**; used to create PVC. |
 | **`global.llmBaseUrl`** | **`""`** | Remote LLM base URL for **vss-agent** when models are not in-cluster (use with **`nims.enabled: false`**). Must be reachable from pods in the release namespace. |
 | **`global.vlmBaseUrl`** | **`""`** | Remote VLM base URL; same constraints. **vss-alert-bridge** and **vss-rtvi-vlm** may use separate overrides when enabled. |
-| **`global.llmName`** | e.g. **`nvidia/nvidia-nemotron-nano-9b-v2`** | Catalog-style model id for **vss-agent**; align with **`global.llmBaseUrl`** when remote. |
+| **`global.llmName`** | e.g. **`nvidia/nemotron-3.5-lightning-30b-a3b`** | Catalog-style model id for **vss-agent**; align with **`global.llmBaseUrl`** when remote. |
 | **`global.vlmName`** | e.g. **`nim_nvidia_cosmos3-nano-reasoner_bf16-final`** | Model id for VLM calls. For integrated RT-VLM, this must match the id advertised by **`/v1/models`**. |
 | **`vios.vstStorage.createSharedPvcs`** | **`true`** | **`true`:** the **`vios`** umbrella creates **PersistentVolumeClaims** so **sensor** and **streamprocessing** share on-disk folders for VST data and video; data survives pod restarts but your cluster must have a working **StorageClass** (see **`global.storageClass`**). **`false`:** no shared PVCs from **`vios`**; behavior depends on **`vios.vss-vios-*`** persistence settings. |
 | **`vios.vstStorage.accessMode`** | **`ReadWriteOnce`** | Access mode for the three shared VST PVCs (see **`helm/services/vios/templates/vst-storage-pvc.yaml`**). |
@@ -184,7 +184,7 @@ In **Description**, **Real-time (`values-realtime.yaml`)** notes which subcharts
 | **`agent.vss-agent.enabled`** | **`true`** | Set **`false`** to disable the **vss-agent** deployment only. |
 | **`agent.vss-agent.profile`** | **`alerts`** | Passed to the **vss-agent** subchart so it mounts **report-templates** and sets template env for the **alerts** UX. ConfigMap data is read from **`configs/vss-agent/config.yml`** (and **`incident_report_template.md`**) in this chart — flat paths, no profile subfolders. |
 | **`agent.vss-agent.mountEvalOutput`** | **`false`** | Shared **vss-agent** chart defaults **`mountEvalOutput: true`** (eval **emptyDir**); alerts sets **`false`** because this profile does not use the eval-output volume. |
-| **`agent.vss-agent.llmName`** | NGC model id (e.g. **`nvidia/nvidia-nemotron-nano-9b-v2`**) | NGC catalog id for the LLM; must match the model deployed under **`nims`**. |
+| **`agent.vss-agent.llmName`** | NGC model id (e.g. **`nvidia/nemotron-3.5-lightning-30b-a3b`**) | NGC catalog id for the LLM; must match the model deployed under **`nims`**. |
 | **`agent.vss-agent.vlmName`** | NGC model id (e.g. **`nim_nvidia_cosmos3-nano-reasoner_bf16-final`**) | NGC catalog id for the RTVI-VLM; must match the model deployed with rtvi-vlm. |
 | **`agent.vss-agent.evalLlmJudgeName`** | **`""`** | Optional eval judge model id. When empty, the **vss-agent** subchart defaults to **`llmName`**. |
 | **`agent.vss-agent.evalLlmJudgeBaseUrl`** | **`""`** | Optional base URL for the eval judge endpoint. When empty, the subchart defaults alongside **`llmBaseUrl`**. |
@@ -316,7 +316,7 @@ helm upgrade --install vss-alerts ./dev-profile-alerts \
   --set global.storageClass="$STORAGE_CLASS" \
   --set-string global.llmBaseUrl="$LLM_BASE_URL" \
   --set-string global.vlmBaseUrl="$VLM_BASE_URL" \
-  --set-string global.llmName="nvidia/nvidia-nemotron-nano-9b-v2" \
+  --set-string global.llmName="nvidia/nemotron-3.5-lightning-30b-a3b" \
   --set-string global.vlmName="$VLM_NAME"
 
 ```
@@ -358,7 +358,7 @@ helm upgrade --install vss-alerts ./dev-profile-alerts \
   --set global.storageClass="$STORAGE_CLASS" \
   --set-string global.llmBaseUrl="$LLM_BASE_URL" \
   --set-string global.vlmBaseUrl="$VLM_BASE_URL" \
-  --set-string global.llmName="nvidia/nvidia-nemotron-nano-9b-v2" \
+  --set-string global.llmName="nvidia/nemotron-3.5-lightning-30b-a3b" \
   --set-string global.vlmName="$VLM_NAME"
 ```
 
