@@ -196,16 +196,17 @@ NVIDIA Video Search and Summarization（VSS）が参照するRT-VLMを、NVIDIA�
 - [x] 全イメージがローカルの場合にNGCログインを省略する`SKIP_NGC_LOGIN=true`を追加した。
 - [x] 依存イメージ取得とCompose構成生成を確認した。
 - [x] GPUなしの単体Composeで保存動画E2Eを実行した。アップロード、8フレーム抽出、OpenAI推論、SSE、削除を確認した。
-- [ ] 実起動はホストDockerにNVIDIA runtimeが未登録のため停止中。VIOSとRT-VLMは`runtime: nvidia`およびGPU予約を要求する。
+- [x] WSL2へNVIDIA Container ToolkitとCDIを設定し、Dockerコンテナ内からRTX 3060を認識できることを確認した。
+- [x] GPU対応のLVSプロファイルを実起動し、LVS、RT-VLM、VIOS、Agent、UI、Kafka、PostgreSQL、Elasticsearchの起動を確認した。
+- [x] ホストRedisとの6379番ポート競合を解消し、Compose Redisの`PONG`応答を確認した。
 
 今回の実起動で取得された公開依存イメージは、Redis、PostgreSQL、Kafka、Elasticsearch、Kibana、Logstash、HAProxy、Phoenixである。これらはVLM/LLM本体ではなく、キュー、DB、検索、入口、観測用の基盤サービスである。
 
 ### フェーズA: VSS全体への統合（最優先）
 
-- [ ] `RTVI_VLM_IMAGE=vss-rt-vlm-openai:test`でLVSプロファイルを起動する（NVIDIA runtime設定後）。
-- [ ] Compose内のRT-VLM healthcheckがhealthyになることを確認する。
-- [ ] LVSから動画をアップロードし、RT-VLMのSSEを受信できることを確認する。
-- [ ] RT-VLM出力が検索用メタデータへ登録されることを確認する。
+- [x] `RTVI_VLM_IMAGE=vss-rt-vlm-openai:test`でLVSプロファイルを起動した。
+- [x] Compose内のRT-VLM healthcheckがhealthyになることを確認した。
+- [ ] LVS UIから動画を登録し、キャプションが検索用メタデータへ登録されることを確認する。
 - [ ] Agent側LLMをOpenAIへ設定し、検索、質問応答、要約まで通す。
 - [ ] OpenAI版RT-VLMでは不要なNVIDIA runtimeとGPU予約を、環境に応じて無効化できる構成を検討する。
 
