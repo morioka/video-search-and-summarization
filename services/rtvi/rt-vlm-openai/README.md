@@ -1,5 +1,8 @@
 # OpenAI RT-VLM Compatibility Service
 
+日本語の実装状況、検証結果、既知の制約、今後の計画は
+[`IMPLEMENTATION_PLAN_JA.md`](IMPLEMENTATION_PLAN_JA.md)を参照してください。
+
 This service is an independently buildable replacement for the stored-video portion of VSS RT-VLM. It uploads video
 files, splits them into time-based chunks, extracts ordered JPEG frames with FFmpeg, calls an OpenAI-compatible
 multimodal Chat Completions endpoint, and returns the RT-VLM caption response over REST or SSE.
