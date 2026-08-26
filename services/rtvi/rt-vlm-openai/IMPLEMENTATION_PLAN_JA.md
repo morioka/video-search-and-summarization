@@ -218,6 +218,8 @@ WSL再起動後の復旧では、`elasticsearch`の`mdx_mdx-elastic-data`と`mdx
 
 本日のDocker検証環境は終了時に停止する。次回はCompose起動前にKafkaデータ、Elasticsearch volume、ホストRedisのポート競合を確認する。
 
+終了処理: 2026-08-27にVSS検証用コンテナ（Agent、LVS、RT-VLM、VIOS、Kafka、Elasticsearch、Kibana、Logstash、UI、ingress等）が停止状態であることを確認した。Dockerコンテナは削除せず、永続ボリュームは保持している。
+
 ### フェーズA: VSS全体への統合（最優先）
 
 - [x] `RTVI_VLM_IMAGE=vss-rt-vlm-openai:test`でLVSプロファイルを起動した。
