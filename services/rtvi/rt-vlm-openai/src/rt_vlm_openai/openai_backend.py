@@ -42,7 +42,14 @@ class OpenAIBackend:
         temporal_prompt = (
             f"{request.prompt.rstrip()}\n\n"
             f"The images are ordered samples from video time {start:.3f}s through {end:.3f}s. "
-            "Describe only what is supported by these frames and preserve the temporal order."
+            "They are sparse observations, not continuous footage. Preserve their temporal order and report only "
+            "actions and objects directly supported by the images. If an object's identity is uncertain, describe "
+            "its visible appearance and how it is handled without naming it. Do not offer alternative identities "
+            "or use speculative language such as maybe, probably, or possibly unless the user explicitly requests "
+            "inference. Do not infer intent, purpose, or an action occurring between samples. Report a transition "
+            "verb such as open, close, insert, or remove only when the sampled images directly show both the prior "
+            "and resulting states. An object that is merely touched, pointed at, or later hidden from view must not "
+            "be described as removed."
         )
         content: list[dict[str, object]] = [{"type": "text", "text": temporal_prompt}]
         content.extend(

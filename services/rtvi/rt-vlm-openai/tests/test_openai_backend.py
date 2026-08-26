@@ -49,6 +49,8 @@ async def test_caption_builds_standard_multimodal_chat_request() -> None:
     assert completions.kwargs["messages"][0] == {"role": "system", "content": "Be precise."}
     user_content = completions.kwargs["messages"][1]["content"]
     assert "2.000s through 12.000s" in user_content[0]["text"]
+    assert "Do not offer alternative identities" in user_content[0]["text"]
+    assert "must not be described as removed" in user_content[0]["text"]
     assert [item["image_url"]["url"] for item in user_content[1:]] == [
         "data:image/jpeg;base64,jpeg-a",
         "data:image/jpeg;base64,jpeg-b",
