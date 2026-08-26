@@ -199,6 +199,9 @@ NVIDIA Video Search and Summarization（VSS）が参照するRT-VLMを、NVIDIA�
 - [x] WSL2へNVIDIA Container ToolkitとCDIを設定し、Dockerコンテナ内からRTX 3060を認識できることを確認した。
 - [x] GPU対応のLVSプロファイルを実起動し、LVS、RT-VLM、VIOS、Agent、UI、Kafka、PostgreSQL、Elasticsearchの起動を確認した。
 - [x] ホストRedisとの6379番ポート競合を解消し、Compose Redisの`PONG`応答を確認した。
+- [x] WSL再起動後に不足していたElasticsearchのnamed volumeを再作成し、`1000:1000`所有権へ修正してhealthyへ復旧した。
+
+WSL再起動後の復旧では、`elasticsearch`の`mdx_mdx-elastic-data`と`mdx_mdx-elastic-logs`をUID/GID `1000:1000`へ変更する必要があった。ホストRedisサービスが自動起動するとCompose Redisと6379番ポートが再び競合するため、継続利用時はホスト側の`redis-server`を停止・無効化するか、Compose側ポートを変更する。
 
 今回の実起動で取得された公開依存イメージは、Redis、PostgreSQL、Kafka、Elasticsearch、Kibana、Logstash、HAProxy、Phoenixである。これらはVLM/LLM本体ではなく、キュー、DB、検索、入口、観測用の基盤サービスである。
 
@@ -206,6 +209,7 @@ NVIDIA Video Search and Summarization（VSS）が参照するRT-VLMを、NVIDIA�
 
 - [x] `RTVI_VLM_IMAGE=vss-rt-vlm-openai:test`でLVSプロファイルを起動した。
 - [x] Compose内のRT-VLM healthcheckがhealthyになることを確認した。
+- [x] 復旧後の公開エンドポイント（LVS `38111`、RT-VLM `8018`、UI `3000`）がHTTP 200になることを確認した。
 - [ ] LVS UIから動画を登録し、キャプションが検索用メタデータへ登録されることを確認する。
 - [ ] Agent側LLMをOpenAIへ設定し、検索、質問応答、要約まで通す。
 - [ ] OpenAI版RT-VLMでは不要なNVIDIA runtimeとGPU予約を、環境に応じて無効化できる構成を検討する。
