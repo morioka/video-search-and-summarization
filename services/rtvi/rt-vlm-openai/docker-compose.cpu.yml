@@ -1,0 +1,22 @@
+# CPU-only stored-video validation for the OpenAI RT-VLM compatibility service.
+services:
+  rtvi-vlm-openai:
+    image: ${RTVI_VLM_IMAGE:-vss-rt-vlm-openai:test}
+    ports:
+      - "${RTVI_OPENAI_PORT:-8018}:8000"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?OPENAI_API_KEY is required}
+      VIA_VLM_OPENAI_MODEL_DEPLOYMENT_NAME: ${VLM_NAME:-gpt-4.1-mini}
+      VIA_VLM_ENDPOINT: ${VIA_VLM_ENDPOINT:-}
+      RTVI_OPENAI_DEFAULT_CHUNK_DURATION: ${RTVI_OPENAI_DEFAULT_CHUNK_DURATION:-30}
+      RTVI_OPENAI_DEFAULT_FRAMES_PER_CHUNK: ${RTVI_OPENAI_DEFAULT_FRAMES_PER_CHUNK:-8}
+    volumes:
+      - rtvi-openai-assets:/var/lib/rt-vlm-openai/assets
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://127.0.0.1:8000/v1/health/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+volumes:
+  rtvi-openai-assets:
