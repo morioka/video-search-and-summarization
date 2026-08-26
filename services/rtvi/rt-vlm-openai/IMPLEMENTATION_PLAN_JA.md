@@ -213,9 +213,12 @@ WSL再起動後の復旧では、`elasticsearch`の`mdx_mdx-elastic-data`と`mdx
 - [x] 復旧後の公開エンドポイント（LVS `38111`、RT-VLM `8018`、UI `3000`）がHTTP 200になることを確認した。
 - [x] Agentの互換動画登録APIへ`konro_inspection.mp4`を登録し、VST完了APIが200を返すことを確認した。
 
+AgentのOpenAIチャットAPI（`/v1/chat/completions`）では、動画一覧と`konro_inspection`への質問応答がHTTP 200で動作した。ただし質問応答はAgentの`video_understanding`による直接VLM経路であり、RT-VLMキャプションをElasticsearchから検索した結果ではない。動画中で未観測の電池取り外しまで推定する回答もあり、根拠区間付き検索としては未完了である。
+
 Agentの`POST /api/v1/videos/{sensor_id}/complete`は、現実装ではVSTのタイムライン・動画URL取得後にRTVI-CVとRTVI Embedだけを呼ぶ。RTVI VLMの保存動画キャプション呼び出しやKafkaキャプション発行は含まれないため、RT-VLMを置き換えただけではUI登録から検索用キャプション登録まで自動接続されない。
 - [ ] LVS UIから動画を登録し、キャプションが検索用メタデータへ登録されることを確認する（Agent API単体では登録成功、RT-VLM自動実行は未確認）。
 - [ ] Agent側LLMをOpenAIへ設定し、検索、質問応答、要約まで通す。
+- [x] Agent側LLMをOpenAIへ設定し、動画一覧と直接VLM質問応答を確認した（検索メタデータ経由ではない）。
 - [ ] OpenAI版RT-VLMでは不要なNVIDIA runtimeとGPU予約を、環境に応じて無効化できる構成を検討する。
 - [ ] RTVI-Embedは当面既存構成を使い、将来Gemma 4系などへ置換する場合は動画・画像・テキスト同一空間、API互換、ベクトル次元、正規化、Elasticsearch再構築を評価する。
 
