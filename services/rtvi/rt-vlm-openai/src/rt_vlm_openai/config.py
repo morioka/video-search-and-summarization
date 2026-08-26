@@ -29,6 +29,8 @@ class Settings:
     max_frames_per_chunk: int
     max_tokens: int
     request_timeout_seconds: int
+    kafka_bootstrap_servers: str = ""
+    kafka_topic: str = "mdx-vlm-captions"
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -45,6 +47,8 @@ class Settings:
             max_frames_per_chunk=_positive_int("RTVI_OPENAI_MAX_FRAMES_PER_CHUNK", 24),
             max_tokens=_positive_int("VLM_MAX_GENERATION_TOKENS", 4096),
             request_timeout_seconds=_positive_int("RTVI_OPENAI_REQUEST_TIMEOUT_SECONDS", 180),
+            kafka_bootstrap_servers=os.getenv("RTVI_OPENAI_KAFKA_BOOTSTRAP_SERVERS", "").strip(),
+            kafka_topic=os.getenv("RTVI_OPENAI_KAFKA_TOPIC", "mdx-vlm-captions").strip(),
         )
 
     def validate(self) -> None:

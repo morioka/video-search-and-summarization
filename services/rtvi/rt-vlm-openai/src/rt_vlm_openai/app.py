@@ -27,6 +27,7 @@ from .models import (
     OpenAIResult,
 )
 from .openai_backend import OpenAIBackend
+from .kafka_publisher import VisionLLMKafkaPublisher
 from .video import VideoChunk, VideoMetadata, VideoProcessor, chunk_ranges
 
 logger = logging.getLogger(__name__)
@@ -140,6 +141,10 @@ def create_app(
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         runtime_settings.validate()
         await store.initialize()
+        publisher = VisionLLMKafkaPublisher(
+            runtime_settings.kafka_bootstrap_servers, runtime_settings.kafka_topic
+        )
+        app.state.kafka_publisher = publisher
         app.state.backend = backend or OpenAIBackend(
             api_key=runtime_settings.api_key,
             model=runtime_settings.model,
@@ -147,7 +152,10 @@ def create_app(
             timeout=runtime_settings.request_timeout_seconds,
             max_tokens=runtime_settings.max_tokens,
         )
-        yield
+        try:
+            yield
+        finally:
+            publisher.close()
 
     app = FastAPI(title="VSS RT-VLM OpenAI Compatibility Service", version="0.1.0", lifespan=lifespan)
     app.state.store = store
@@ -261,6 +269,12 @@ def create_app(
                         backend=app.state.backend,
                         query_id=query_id,
                     )
+                    app.state.kafka_publisher.publish(
+                        stream_id=str(asset.info.id),
+                        chunk=response["chunk_responses"][0],
+                        model=response["model"],
+                        request_id=str(query_id),
+                    )
                     processed += 1
                     yield f"data: {json.dumps(response, separators=(',', ':'))}\n\n"
                 if request.stream_options and request.stream_options.include_usage:
@@ -286,8 +300,7 @@ def create_app(
         responses = []
         try:
             for chunk in chunks:
-                responses.append(
-                    await _process_chunk(
+                response = await _process_chunk(
                         asset=asset,
                         chunk=chunk,
                         request=request,
@@ -296,6 +309,12 @@ def create_app(
                         backend=app.state.backend,
                         query_id=query_id,
                     )
+                responses.append(response)
+                app.state.kafka_publisher.publish(
+                    stream_id=str(asset.info.id),
+                    chunk=response["chunk_responses"][0],
+                    model=response["model"],
+                    request_id=str(query_id),
                 )
         except OpenAIError as exc:
             logger.warning("OpenAI-compatible VLM request failed: %s", exc)

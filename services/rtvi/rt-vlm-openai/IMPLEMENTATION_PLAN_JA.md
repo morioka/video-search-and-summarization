@@ -206,6 +206,18 @@ WSL再起動後の復旧では、`elasticsearch`の`mdx_mdx-elastic-data`と`mdx
 
 今回の実起動で取得された公開依存イメージは、Redis、PostgreSQL、Kafka、Elasticsearch、Kibana、Logstash、HAProxy、Phoenixである。これらはVLM/LLM本体ではなく、キュー、DB、検索、入口、観測用の基盤サービスである。
 
+### 2026-08-26 終了時点の検証結果
+
+- [x] AgentのOpenAIチャットAPIで動画一覧と動画質問応答を確認した。
+- [x] Agentの動画登録APIで`konro_inspection.mp4`をVSTへ登録し、完了APIを確認した。
+- [x] `nv.VisionLLM` protobuf生成とKafka発行の任意機能をOpenAI版RT-VLMへ追加した。
+- [x] Kafka障害時にキャプションAPIを巻き込まないbest-effort発行へ変更した。
+- [x] Kafka対応イメージをLVSへ反映し、RT-VLMとKafkaのhealthcheckを確認した。
+- [ ] KafkaからLogstash、Elasticsearchまでの実メッセージ登録を確認する。
+- [ ] UI登録からRT-VLMキャプション検索までの自動経路を確認する。
+
+本日のDocker検証環境は終了時に停止する。次回はCompose起動前にKafkaデータ、Elasticsearch volume、ホストRedisのポート競合を確認する。
+
 ### フェーズA: VSS全体への統合（最優先）
 
 - [x] `RTVI_VLM_IMAGE=vss-rt-vlm-openai:test`でLVSプロファイルを起動した。
