@@ -176,6 +176,7 @@ NVIDIA Video Search and Summarization（VSS）が参照するRT-VLMを、NVIDIA�
 - URLからの動画取得
 - 画像単体のキャプション生成
 - 埋め込み生成
+- RTVI-Embedの置換（Gemma 4系を含むマルチモーダル埋め込みモデルの評価）
 - 複数動画・複数要求の負荷制御
 - API認証と利用者ごとの認可
 - OpenAIのrate limitに対するキュー制御
@@ -216,6 +217,7 @@ Agentの`POST /api/v1/videos/{sensor_id}/complete`は、現実装ではVSTのタ
 - [ ] LVS UIから動画を登録し、キャプションが検索用メタデータへ登録されることを確認する（Agent API単体では登録成功、RT-VLM自動実行は未確認）。
 - [ ] Agent側LLMをOpenAIへ設定し、検索、質問応答、要約まで通す。
 - [ ] OpenAI版RT-VLMでは不要なNVIDIA runtimeとGPU予約を、環境に応じて無効化できる構成を検討する。
+- [ ] RTVI-Embedは当面既存構成を使い、将来Gemma 4系などへ置換する場合は動画・画像・テキスト同一空間、API互換、ベクトル次元、正規化、Elasticsearch再構築を評価する。
 
 完了条件:
 
