@@ -210,7 +210,8 @@ WSL再起動後の復旧では、`elasticsearch`の`mdx_mdx-elastic-data`と`mdx
 - [x] `RTVI_VLM_IMAGE=vss-rt-vlm-openai:test`でLVSプロファイルを起動した。
 - [x] Compose内のRT-VLM healthcheckがhealthyになることを確認した。
 - [x] 復旧後の公開エンドポイント（LVS `38111`、RT-VLM `8018`、UI `3000`）がHTTP 200になることを確認した。
-- [ ] LVS UIから動画を登録し、キャプションが検索用メタデータへ登録されることを確認する。
+- [x] Agentの互換動画登録APIへ`konro_inspection.mp4`を登録し、VST完了APIが200を返すことを確認した。
+- [ ] LVS UIから動画を登録し、キャプションが検索用メタデータへ登録されることを確認する（Agent API単体では登録成功、RT-VLM自動実行は未確認）。
 - [ ] Agent側LLMをOpenAIへ設定し、検索、質問応答、要約まで通す。
 - [ ] OpenAI版RT-VLMでは不要なNVIDIA runtimeとGPU予約を、環境に応じて無効化できる構成を検討する。
 
