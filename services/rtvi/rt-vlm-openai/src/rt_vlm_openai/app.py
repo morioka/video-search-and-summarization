@@ -14,6 +14,7 @@ from uuid import UUID, uuid4
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
+from openai import OpenAIError
 
 from .assets import Asset, AssetStore
 from .config import Settings
@@ -283,18 +284,22 @@ def create_app(
             return StreamingResponse(events(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"})
 
         responses = []
-        for chunk in chunks:
-            responses.append(
-                await _process_chunk(
-                    asset=asset,
-                    chunk=chunk,
-                    request=request,
-                    settings=runtime_settings,
-                    video_processor=processor,
-                    backend=app.state.backend,
-                    query_id=query_id,
+        try:
+            for chunk in chunks:
+                responses.append(
+                    await _process_chunk(
+                        asset=asset,
+                        chunk=chunk,
+                        request=request,
+                        settings=runtime_settings,
+                        video_processor=processor,
+                        backend=app.state.backend,
+                        query_id=query_id,
+                    )
                 )
-            )
+        except OpenAIError as exc:
+            logger.warning("OpenAI-compatible VLM request failed: %s", exc)
+            raise HTTPException(status_code=502, detail=f"OpenAI-compatible VLM request failed: {exc}") from exc
         return {
             "id": str(query_id),
             "created": int(time.time()),

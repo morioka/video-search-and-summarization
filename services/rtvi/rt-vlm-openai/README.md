@@ -25,6 +25,22 @@ uv run --extra dev uvicorn rt_vlm_openai.app:app --host 0.0.0.0 --port 8018
 
 For a non-OpenAI provider exposing the same API, also set `VIA_VLM_ENDPOINT` and optionally `VIA_VLM_API_KEY`.
 
+## End-to-end check
+
+Start the service with a real OpenAI API key and an image-capable model, then run the client against a local video:
+
+```bash
+uv run --extra dev python scripts/e2e.py \
+  --base-url http://127.0.0.1:8018 \
+  --video /path/to/video.mp4 \
+  --chunk-duration 30 \
+  --frames-per-chunk 8 \
+  --stream
+```
+
+The client uploads the video, requests captions, prints every SSE payload, and deletes the uploaded asset. Pass
+`--keep-file` to retain the server-side copy for debugging.
+
 ## Build and use with the VSS Compose stack
 
 ```bash

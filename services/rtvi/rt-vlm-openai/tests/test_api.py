@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 
 import httpx
+from openai import APIConnectionError
 
 from rt_vlm_openai.app import create_app
 from rt_vlm_openai.config import Settings
@@ -22,6 +23,13 @@ class FakeBackend:
     async def caption(self, request, images, *, start, end):
         self.calls.append((request, list(images), start, end))
         return OpenAIResult(content=f"caption {start:.0f}-{end:.0f}", input_tokens=10, output_tokens=4), 12.5
+
+
+class FailingBackend:
+    model = "openai-test-vlm"
+
+    async def caption(self, request, images, *, start, end):
+        raise APIConnectionError(request=httpx.Request("POST", "https://example.invalid/v1/chat/completions"))
 
 
 class FakeVideoProcessor:
@@ -124,3 +132,23 @@ async def test_rejects_audio_and_invalid_overlap(tmp_path: Path) -> None:
 
     assert audio.status_code == 422
     assert overlap.status_code == 422
+
+
+async def test_nonstream_openai_failure_returns_json_502(tmp_path: Path) -> None:
+    app = create_app(settings(tmp_path), backend=FailingBackend(), video_processor=FakeVideoProcessor())
+    transport = httpx.ASGITransport(app=app)
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(transport=transport, base_url="http://test") as client,
+    ):
+        upload = await client.post(
+            "/v1/files",
+            files={"file": ("sample.mp4", b"not-a-real-video", "video/mp4")},
+        )
+        response = await client.post(
+            "/v1/generate_captions",
+            json={"id": upload.json()["id"], "prompt": "Describe the activity", "stream": False},
+        )
+
+    assert response.status_code == 502
+    assert response.json()["detail"].startswith("OpenAI-compatible VLM request failed:")
