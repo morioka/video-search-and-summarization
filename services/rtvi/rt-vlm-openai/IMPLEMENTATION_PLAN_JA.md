@@ -407,3 +407,4 @@ uv run --extra dev python scripts/e2e.py \
 - ローカルAlertイメージ用Compose overrideは`deploy/docker/services/alert/alert-local.override.yml`に追加した。これは元のVLM検証・Kafka連携の代替実行基盤であり、NVIDIA NGCイメージとの完全な機能同一性は保証しない。次段階でKafka/Redis/Elasticsearchを接続したAlert HTTP E2Eを行う。
 - [x] ローカルAlertイメージをAlert付属Composeへoverrideして起動した。Redisを同時起動し、`GET /health` がHTTP 200、`POST /api/v1/incidents` がHTTP 202（Kafka producer初期化・ワーカー処理開始）を返すことを確認した。VLMバックエンド未接続でも受理経路は動作する。
 - [x] ローカルoverrideへ`VLM_WARMUP_ENABLED`と`FASTAPI_PORT`の環境変数を追加した。NIMを使わない検証では`VLM_WARMUP_ENABLED=false`をコンテナ内へ確実に渡し、不要な起動待ちを防ぐ。
+- [ ] AlertのオンデマンドVLM検証をRTVIへ接続するには追加アダプタが必要。AlertはOpenAI Chat Completions（`POST /v1/chat/completions`、`video_url`形式）を呼ぶが、RTVI-OpenAI実装は現在ファイルCaption API（`/v1/files` + `/v1/generate_captions`）のみを提供する。実動画URLでAlert→RTVIを試験し、RTVI側のChat互換エンドポイントが404になることを確認した。次は、動画URLを一時asset化してcaption結果をChat Completionsレスポンスへ変換する薄い互換層を実装する。
