@@ -4,3 +4,6 @@ services:
       context: ${VSS_APPS_DIR}/services/alert
       dockerfile: Dockerfile.local
     image: vss-alert-bridge:local
+    environment:
+      VLM_WARMUP_ENABLED: ${VLM_WARMUP_ENABLED:-true}
+      FASTAPI_PORT: ${FASTAPI_PORT:-9080}
