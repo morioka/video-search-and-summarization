@@ -65,11 +65,21 @@ For a local functional build without the NVIDIA NGC distroless base image:
 
 ```bash
 docker build -f services/alert/Dockerfile.local -t vss-alert-bridge:local services/alert
-docker compose -f deploy/docker/services/alert/compose.yml \
-  -f deploy/docker/services/alert/alert-local.override.yml up -d alert-bridge
 ```
 
-This image is intended for HTTP/ Kafka/ Elasticsearch integration tests. It is
+For a full VSS stack, add
+`deploy/docker/services/alert/alert-local.override.yml` to the parent Compose
+configuration that defines Kafka, Redis, and Elasticsearch, then start the
+`alert-bridge` profile. For an isolated smoke test, run the image directly and
+mount a compatible config file, for example:
+
+```bash
+docker run --rm --network host \
+  -v "$PWD/services/alert/config.yaml:/app/config.yaml:ro" \
+  vss-alert-bridge:local
+```
+
+This image is intended for HTTP/Kafka/Elasticsearch integration tests. It is
 not a byte-for-byte replacement for the NVIDIA-distributed runtime image.
 
 ## Quick Start
