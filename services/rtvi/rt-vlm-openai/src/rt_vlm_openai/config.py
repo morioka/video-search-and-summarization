@@ -33,6 +33,8 @@ class Settings:
     max_retries: int = 3
     kafka_bootstrap_servers: str = ""
     kafka_topic: str = "mdx-vlm-captions"
+    alert_endpoint: str = ""
+    alert_keywords: str = ""
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -53,6 +55,8 @@ class Settings:
             max_retries=max(0, int(os.getenv("RTVI_OPENAI_MAX_RETRIES", "3"))),
             kafka_bootstrap_servers=os.getenv("RTVI_OPENAI_KAFKA_BOOTSTRAP_SERVERS", "").strip(),
             kafka_topic=os.getenv("RTVI_OPENAI_KAFKA_TOPIC", "mdx-vlm-captions").strip(),
+            alert_endpoint=os.getenv("RTVI_OPENAI_ALERT_ENDPOINT", "").strip(),
+            alert_keywords=os.getenv("RTVI_OPENAI_ALERT_KEYWORDS", "").strip(),
         )
 
     def validate(self) -> None:

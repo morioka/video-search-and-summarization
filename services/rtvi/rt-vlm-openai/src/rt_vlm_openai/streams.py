@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from uuid import uuid4
 
+from .alerts import AlertSink
 from .assets import Asset
 from .models import FileInfo, GenerateCaptionsRequest
 from .video import VideoChunk, VideoProcessor
@@ -44,6 +45,7 @@ class StreamRegistry:
         semaphore: asyncio.Semaphore,
         chunk_seconds: int,
         frames: int,
+        alert_sink: AlertSink | None = None,
     ) -> None:
         self._processor = processor
         self._backend = backend
@@ -51,6 +53,7 @@ class StreamRegistry:
         self._semaphore = semaphore
         self._chunk_seconds = chunk_seconds
         self._frames = frames
+        self._alert_sink = alert_sink or AlertSink()
         self._entries: dict[str, StreamEntry] = {}
         self._lock = asyncio.Lock()
 
@@ -151,6 +154,15 @@ class StreamRegistry:
                     self._publisher.publish(
                         stream_id=stream_id, chunk=chunk, model=response["model"], request_id=response["id"]
                     )
+                    try:
+                        await self._alert_sink.emit_if_match(
+                            stream_id=stream_id,
+                            content=str(chunk.get("content", "")),
+                            start=str(chunk.get("start_time", "")),
+                            end=str(chunk.get("end_time", "")),
+                        )
+                    except Exception:
+                        logger.exception("alert bridge request failed for %s", stream_id)
                     offset += duration
                     chunk_index += 1
             except asyncio.CancelledError:

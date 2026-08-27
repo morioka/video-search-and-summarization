@@ -22,6 +22,10 @@ OpenAI multimodal path, and publishes optional Kafka captions. It is intentional
 reconnection policy, audio, URL asset ingestion, embeddings, and the OpenAI-compatible `/v1/chat/completions` facade
 remain outside this service.
 
+Optional alert bridge: set `RTVI_OPENAI_ALERT_ENDPOINT` to the Alert service base URL and
+`RTVI_OPENAI_ALERT_KEYWORDS` to a comma-separated keyword list. Only matching stream captions
+are posted to `/api/v1/incidents`; both variables are empty by default.
+
 ## Run locally
 
 ```bash

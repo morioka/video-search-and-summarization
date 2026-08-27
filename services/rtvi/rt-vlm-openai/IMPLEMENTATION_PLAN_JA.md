@@ -222,6 +222,8 @@ Alertサービスの設定では、Incident protobufの入力トピックは`ale
 
 AlertのHTTP入口は`POST /api/v1/incidents`で、JSONの場合は少なくとも`id`、`timestamp`、`sensorId`を受け付け、Alert側でIncident protobufへ変換して`alert-bridge-incidents`へ発行する。したがって、将来のアラート接続はこのHTTP入口を利用するのが最小依存となる。
 
+キーワード方式の任意Alert bridgeを追加した。`RTVI_OPENAI_ALERT_ENDPOINT`と`RTVI_OPENAI_ALERT_KEYWORDS`（カンマ区切り）の両方を設定した場合だけ、ストリームキャプションに一致語があるチャンクを`/api/v1/incidents`へ送信する。既定は無効であり、保存動画経路やKafkaキャプションには影響しない。これは暫定的な体験用ルールで、検知品質・重複抑制・本番認証は未対応である。
+
 ## 10. 今後の計画
 
 ### 2026-08-26 実施済みのフェーズA準備
