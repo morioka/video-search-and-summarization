@@ -14,16 +14,17 @@ from typing import Any, Protocol
 from uuid import UUID, uuid4
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from starlette.requests import Request
-from starlette.responses import Response
 from fastapi.responses import StreamingResponse
 from openai import OpenAIError
+from starlette.requests import Request
+from starlette.responses import Response
 
 from .assets import Asset, AssetStore
 from .config import Settings
+from .kafka_publisher import VisionLLMKafkaPublisher
 from .models import (
-    DeleteFileResponse,
     AddStreamsRequest,
+    DeleteFileResponse,
     FileInfo,
     GenerateCaptionsRequest,
     JsonDict,
@@ -31,7 +32,6 @@ from .models import (
     OpenAIResult,
 )
 from .openai_backend import OpenAIBackend
-from .kafka_publisher import VisionLLMKafkaPublisher
 from .streams import StreamRegistry
 from .video import VideoChunk, VideoMetadata, VideoProcessor, chunk_ranges
 
@@ -147,9 +147,7 @@ def create_app(
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         runtime_settings.validate()
         await store.initialize()
-        publisher = VisionLLMKafkaPublisher(
-            runtime_settings.kafka_bootstrap_servers, runtime_settings.kafka_topic
-        )
+        publisher = VisionLLMKafkaPublisher(runtime_settings.kafka_bootstrap_servers, runtime_settings.kafka_topic)
         app.state.kafka_publisher = publisher
         app.state.backend = backend or OpenAIBackend(
             api_key=runtime_settings.api_key,
@@ -184,7 +182,14 @@ def create_app(
         response = await call_next(request)
         elapsed_ms = (time.perf_counter() - started) * 1000
         response.headers["x-request-id"] = request_id
-        logger.info("request_id=%s method=%s path=%s status=%s latency_ms=%.1f", request_id, request.method, request.url.path, response.status_code, elapsed_ms)
+        logger.info(
+            "request_id=%s method=%s path=%s status=%s latency_ms=%.1f",
+            request_id,
+            request.method,
+            request.url.path,
+            response.status_code,
+            elapsed_ms,
+        )
         return response
 
     @app.get("/v1/health/ready")
@@ -272,7 +277,7 @@ def create_app(
             try:
                 await processor.probe(asset.path)
             except Exception as exc:
-                await store.delete(asset_id)
+                await store.delete(asset.info.id)
                 raise HTTPException(status_code=422, detail=f"Invalid video: {exc}") from exc
         return asset.info
 
@@ -362,14 +367,14 @@ def create_app(
             for chunk in chunks:
                 async with request_semaphore:
                     response = await _process_chunk(
-                            asset=asset,
-                            chunk=chunk,
-                            request=request,
-                            settings=runtime_settings,
-                            video_processor=processor,
-                            backend=app.state.backend,
-                            query_id=query_id,
-                        )
+                        asset=asset,
+                        chunk=chunk,
+                        request=request,
+                        settings=runtime_settings,
+                        video_processor=processor,
+                        backend=app.state.backend,
+                        query_id=query_id,
+                    )
                 responses.append(response)
                 app.state.kafka_publisher.publish(
                     stream_id=str(asset.info.id),

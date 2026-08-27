@@ -35,7 +35,16 @@ class StreamEntry:
 class StreamRegistry:
     """Manage best-effort continuous capture and caption tasks."""
 
-    def __init__(self, *, processor: VideoProcessor, backend: object, publisher: object, semaphore: asyncio.Semaphore, chunk_seconds: int, frames: int) -> None:
+    def __init__(
+        self,
+        *,
+        processor: VideoProcessor,
+        backend: object,
+        publisher: object,
+        semaphore: asyncio.Semaphore,
+        chunk_seconds: int,
+        frames: int,
+    ) -> None:
         self._processor = processor
         self._backend = backend
         self._publisher = publisher
@@ -105,16 +114,37 @@ class StreamRegistry:
                         raise RuntimeError(f"FFmpeg capture failed with exit code {process.exitcode}")
                     metadata = await self._processor.probe(path)
                     duration = metadata.duration
-                    info = FileInfo(id=uuid4(), bytes=path.stat().st_size, filename=f"{stream_id}-{chunk_index}.mp4", sensor_name=sensor_name, media_type="video")
+                    info = FileInfo(
+                        id=uuid4(),
+                        bytes=path.stat().st_size,
+                        filename=f"{stream_id}-{chunk_index}.mp4",
+                        sensor_name=sensor_name,
+                        media_type="video",
+                    )
                     asset = Asset(info=info, path=path)
-                    request = GenerateCaptionsRequest(id=info.id, prompt=description or "Describe events and safety hazards.", num_frames_per_second_or_fixed_frames_chunk=self._frames)
+                    request = GenerateCaptionsRequest(
+                        id=info.id,
+                        prompt=description or "Describe events and safety hazards.",
+                        num_frames_per_second_or_fixed_frames_chunk=self._frames,
+                    )
                     async with self._semaphore:
                         from .app import _process_chunk
-                        response = await _process_chunk(asset=asset, chunk=VideoChunk(chunk_index, 0.0, duration), request=request, settings=_settings_for_worker(self._frames), video_processor=self._processor, backend=self._backend, query_id=uuid4())
+
+                        response = await _process_chunk(
+                            asset=asset,
+                            chunk=VideoChunk(chunk_index, 0.0, duration),
+                            request=request,
+                            settings=_settings_for_worker(self._frames),
+                            video_processor=self._processor,
+                            backend=self._backend,
+                            query_id=uuid4(),
+                        )
                     chunk = response["chunk_responses"][0]
                     chunk["start_time"] = f"{offset:.3f}".rstrip("0").rstrip(".")
                     chunk["end_time"] = f"{offset + duration:.3f}".rstrip("0").rstrip(".")
-                    self._publisher.publish(stream_id=stream_id, chunk=chunk, model=response["model"], request_id=response["id"])
+                    self._publisher.publish(
+                        stream_id=stream_id, chunk=chunk, model=response["model"], request_id=response["id"]
+                    )
                     offset += duration
                     chunk_index += 1
             except asyncio.CancelledError:

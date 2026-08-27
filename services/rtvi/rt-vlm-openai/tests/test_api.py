@@ -1,8 +1,8 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-import base64
 import asyncio
+import base64
 import json
 from pathlib import Path
 
@@ -12,9 +12,8 @@ from openai import APIConnectionError
 from rt_vlm_openai.app import create_app
 from rt_vlm_openai.config import Settings
 from rt_vlm_openai.models import GenerateCaptionsRequest, OpenAIResult
-from rt_vlm_openai.video import ExtractedFrames, VideoMetadata
 from rt_vlm_openai.streams import StreamRegistry
-from rt_vlm_openai.video import VideoProcessor
+from rt_vlm_openai.video import ExtractedFrames, VideoMetadata, VideoProcessor
 
 
 class FakeBackend:
@@ -52,7 +51,6 @@ class FakeVideoProcessor:
         assert path.exists()
         images = [base64.b64encode(f"frame-{index}".encode()).decode() for index in range(frame_count)]
         return ExtractedFrames(images=images, latency_ms=5.0)
-
 
 
 def settings(tmp_path: Path) -> Settings:
@@ -192,8 +190,12 @@ async def test_file_stream_worker_processes_real_chunk(tmp_path: Path) -> None:
         return
     publisher = FakePublisher()
     registry = StreamRegistry(
-        processor=VideoProcessor(), backend=FakeBackend(), publisher=publisher,
-        semaphore=asyncio.Semaphore(1), chunk_seconds=1, frames=2,
+        processor=VideoProcessor(),
+        backend=FakeBackend(),
+        publisher=publisher,
+        semaphore=asyncio.Semaphore(1),
+        chunk_seconds=1,
+        frames=2,
     )
     stream_id = await registry.add(stream_id="local-file", url=source.as_uri(), description="test", sensor_name="cam")
     await asyncio.sleep(3)
