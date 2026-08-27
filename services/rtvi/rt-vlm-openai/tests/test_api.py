@@ -10,6 +10,7 @@ import httpx
 from openai import APIConnectionError
 
 from rt_vlm_openai.app import create_app
+import rt_vlm_openai.app as app_module
 from rt_vlm_openai.config import Settings
 from rt_vlm_openai.models import GenerateCaptionsRequest, OpenAIResult
 from rt_vlm_openai.streams import StreamRegistry
@@ -163,6 +164,53 @@ async def test_nonstream_openai_failure_returns_json_502(tmp_path: Path) -> None
 
     assert response.status_code == 502
     assert response.json()["detail"].startswith("OpenAI-compatible VLM request failed:")
+
+
+async def test_chat_completions_video_url_bridge(tmp_path: Path, monkeypatch) -> None:
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self, _size):
+            return b"video-bytes" if not getattr(self, "done", False) else b""
+
+    def fake_urlopen(*_args, **_kwargs):
+        response = FakeResponse()
+        response.done = False
+        original_read = response.read
+
+        def read_once(size):
+            if response.done:
+                return b""
+            response.done = True
+            return original_read(size)
+
+        response.read = read_once
+        return response
+
+    monkeypatch.setattr(app_module, "urlopen", fake_urlopen)
+    backend = FakeBackend()
+    app = create_app(settings(tmp_path), backend=backend, video_processor=FakeVideoProcessor())
+    transport = httpx.ASGITransport(app=app)
+    async with app.router.lifespan_context(app), httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            "/v1/chat/completions",
+            json={
+                "model": "openai-test-vlm",
+                "messages": [{"role": "user", "content": [
+                    {"type": "video_url", "video_url": {"url": "http://example.test/video.mp4"}},
+                    {"type": "text", "text": "Describe the activity"},
+                ]}],
+            },
+        )
+        missing = await client.post("/v1/chat/completions", json={"messages": [{"role": "user", "content": "text"}]})
+
+    assert response.status_code == 200
+    assert response.json()["choices"][0]["message"]["content"] == "caption 0-25"
+    assert missing.status_code == 422
 
 
 async def test_stream_lifecycle_contract(tmp_path: Path) -> None:
