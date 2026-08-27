@@ -10,10 +10,12 @@ import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
-from typing import Protocol
+from typing import Any, Protocol
 from uuid import UUID, uuid4
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from starlette.requests import Request
+from starlette.responses import Response
 from fastapi.responses import StreamingResponse
 from openai import OpenAIError
 
@@ -163,6 +165,16 @@ def create_app(
     app = FastAPI(title="VSS RT-VLM OpenAI Compatibility Service", version="0.1.0", lifespan=lifespan)
     app.state.store = store
     app.state.video_processor = processor
+
+    @app.middleware("http")
+    async def request_observability(request: Request, call_next: Any) -> Response:
+        request_id = request.headers.get("x-request-id") or str(uuid4())
+        started = time.perf_counter()
+        response = await call_next(request)
+        elapsed_ms = (time.perf_counter() - started) * 1000
+        response.headers["x-request-id"] = request_id
+        logger.info("request_id=%s method=%s path=%s status=%s latency_ms=%.1f", request_id, request.method, request.url.path, response.status_code, elapsed_ms)
+        return response
 
     @app.get("/v1/health/ready")
     async def ready() -> JsonDict:
