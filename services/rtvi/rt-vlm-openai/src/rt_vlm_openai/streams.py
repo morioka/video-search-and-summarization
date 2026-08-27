@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import subprocess
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -84,19 +85,11 @@ class StreamRegistry:
                         command += ["-rtsp_transport", "tcp"]
                     command += ["-i", url, "-t", str(self._chunk_seconds), "-an"]
                     command += ["-c:v", "libx264" if url.startswith("rtsp://") else "copy", str(path)]
-                    process = await asyncio.create_subprocess_exec(*command, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.PIPE)
-                    try:
-                        _, stderr = await process.communicate()
-                    except asyncio.CancelledError:
-                        if process.returncode is None:
-                            process.kill()
-                        try:
-                            await asyncio.wait_for(process.wait(), timeout=5)
-                        except asyncio.TimeoutError:
-                            logger.warning("ffmpeg process did not exit after cancellation: %s", stream_id)
-                        raise
-                    if process.returncode != 0 or not path.exists() or path.stat().st_size == 0:
-                        raise RuntimeError(stderr.decode(errors="replace")[-500:])
+                    result = await asyncio.to_thread(
+                        subprocess.run, command, capture_output=True, check=False, timeout=self._chunk_seconds + 30
+                    )
+                    if result.returncode != 0 or not path.exists() or path.stat().st_size == 0:
+                        raise RuntimeError(result.stderr.decode(errors="replace")[-500:])
                     metadata = await self._processor.probe(path)
                     duration = metadata.duration
                     info = FileInfo(id=uuid4(), bytes=path.stat().st_size, filename=f"{stream_id}-{chunk_index}.mp4", sensor_name=sensor_name, media_type="video")
