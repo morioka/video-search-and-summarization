@@ -208,11 +208,11 @@ VSTの公開ドキュメントが手元にない場合でも、リポジトリ�
 
 この形式は実動画でHTTP 200を確認済みであり、UIの単一チャンク実装と複数チャンク実装の双方に一致する。VSTの正式な外部仕様書が入手できた場合は、ヘッダー名・番号規則・応答フィールドを照合し、差分があればUI実装を優先せず修正する。
 
-## 9.3 リアルタイムRTSPの未実装境界
+## 9.3 リアルタイムRTSPの互換範囲
 
-Agentには`POST /api/v1/rtsp-streams/add`があり、VSTで得たRTSP URLを`POST /v1/streams/add`の`liveStreamUrl`としてRTVI-VLMへ登録する契約がある。しかしOpenAI版RT-VLMは現在、`/v1/files`で保存した動画を処理する実装であり、`/v1/streams/add`、RTSP再接続、継続チャンク生成は未実装である。
+Agentには`POST /api/v1/rtsp-streams/add`があり、VSTで得たRTSP URLを`POST /v1/streams/add`の`liveStreamUrl`としてRTVI-VLMへ登録する契約がある。OpenAI版RT-VLMにはこの契約に合わせた最小ストリームワーカーを実装した。
 
-OpenAIでリアルタイム経路を成立させるには、RTSPをFFmpeg/GStreamerで一定時間のローカルチャンクへ切り出し、既存のフレーム抽出・OpenAI推論・Kafka発行をバックグラウンドで繰り返す必要がある。最小ワーカーとして`/v1/streams/add`、一覧、`/v1/streams/delete/{id}`と、FFmpegチャンク取得→既存推論→Kafka発行を実装した。再接続は固定2秒リトライであり、音声、完全なNVIDIA互換、`/v1/generate_captions/{id}`停止APIは今後の課題である。実カメラがないため、まずは同じ`konro_inspection.mp4`をRTSP配信するテストソースで、登録→数チャンク→Kafka/Elasticsearch→停止を検証する。
+OpenAI版ではRTSPをFFmpegで一定時間のローカルチャンクへ切り出し、既存のフレーム抽出・OpenAI推論・Kafka発行をバックグラウンドで繰り返す。`/v1/streams/add`、一覧、`/v1/streams/delete/{id}`を実装し、`konro_inspection.mp4`の`file://`疑似入力で複数チャンク生成と停止を確認した。固定2秒リトライ、音声、完全なNVIDIA互換、`/v1/generate_captions/{id}`停止APIは今後の課題である。
 
 ## 10. 今後の計画
 
