@@ -146,6 +146,10 @@ services:
       # Override path for vLLM patch script.
       VLLM_ROOT: "${VLLM_ROOT:-/usr/local/lib/python3.12/dist-packages/vllm}"
     volumes:
+      # Persist uploaded media across RT-VLM container recreation. When
+      # RTVI_OPENAI_ASSET_DIR is overridden, mount the corresponding host path
+      # separately through the existing deployment configuration.
+      - "${RTVI_OPENAI_ASSET_VOLUME:-rtvi-openai-assets}:/tmp/rt-vlm-openai-assets"
       - "${ASSET_STORAGE_DIR:-/dummy}${ASSET_STORAGE_DIR:+:/tmp/assets}"
       - "${RTVI_VLM_HF_CACHE:-rtvi-hf-cache}:/tmp/huggingface"
       - ${VSS_DATA_DIR}/data_log/vst/clip_storage:/home/vst/vst_release/streamer_videos
@@ -205,5 +209,6 @@ services:
         required: false
 
 volumes:
+  rtvi-openai-assets:
   rtvi-hf-cache:
   rtvi-ngc-model-cache:
