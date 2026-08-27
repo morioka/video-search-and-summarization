@@ -1,0 +1,15 @@
+# OpenAI-compatible RT-VLM override for hosts without NVIDIA Container Toolkit.
+#
+# Use this file after the normal profile compose files:
+#   docker compose -f <profile>.yml \
+#     -f services/rtvi/rtvi-vlm/rtvi-vlm-openai-no-gpu.override.yml up -d rtvi-vlm
+#
+# The OpenAI implementation performs frame extraction on the CPU and sends
+# images to a remote multimodal endpoint, so it does not need a GPU device.
+services:
+  rtvi-vlm:
+    runtime: ""
+    deploy:
+      resources:
+        reservations:
+          devices: []

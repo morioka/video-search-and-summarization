@@ -47,6 +47,13 @@ The client uploads the video, requests captions, prints every SSE payload, and d
 ## CPU-only stored-video validation
 
 The OpenAI compatibility service does not need a local GPU when it sends frames to a remote OpenAI-compatible API.
+
+When it is included through the VSS profile compose files, those files retain
+the NVIDIA runtime and device reservation required by the original RT-VLM.
+On a host without NVIDIA Container Toolkit, apply
+`deploy/docker/services/rtvi/rtvi-vlm/rtvi-vlm-openai-no-gpu.override.yml` as a
+second Compose file. It clears the runtime and GPU device reservation for the
+`rtvi-vlm` service; the other VSS services may still require GPU access.
 Start the standalone CPU profile (this intentionally excludes VIOS, NVStreamer, and the rest of the VSS stack):
 
 ```bash
