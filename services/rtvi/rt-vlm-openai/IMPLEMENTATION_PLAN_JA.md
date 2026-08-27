@@ -192,6 +192,19 @@ LLMとVLMは独立して実行場所を選択できる。`LLM_MODE`/`VLM_MODE`�
 
 現在の検証環境は、Agent LLMが`remote + openai + gpt-4o-mini`、保存動画RT-VLMもOpenAI互換remoteである。ローカルLlama/Nemotron/Qwen系NIMへ戻す場合は、対応するComposeプロファイル、GPU、モデルキャッシュが必要になる。LLMだけremote、VLMだけlocal、またはその逆の混在も可能である。
 
+## 9.2 VST動画アップロードの根拠と再現手順
+
+VSTの公開ドキュメントが手元にない場合でも、リポジトリ内のUI実装
+`services/ui/packages/common/lib-src/utils/chunkedUpload.ts`および
+`videoUpload.ts`が実際に使用するプロトコルを定義している。したがって、今後はVSTバイナリに対する推測的な試行錯誤ではなく、この実装とテストを基準にする。
+
+1. Agentの`POST /api/v1/videos`へ`{"filename":"<name>"}`を送り、VSTのアップロードURLを得る。
+2. ファイルを既定10MiB（`10 * 1024 * 1024`）に分割し、各チャンクを順番にPOSTする。multipartフィールドは`mediaFile`、`filename`、`metadata`（`{"timestamp":"2025-01-01T00:00:00"}`）である。
+3. 各POSTに`nvstreamer-chunk-number`（1始まり）、`nvstreamer-total-chunks`、`nvstreamer-is-last-chunk`、`nvstreamer-identifier`（UUID）、`nvstreamer-file-name`を付ける。最後の応答に含まれる`sensorId`がVSTの動画IDになる。
+4. Agentの`POST /api/v1/videos/{sensorId}/complete`へ最後のVST応答と`filename`をJSONで渡し、後処理（RT-VLM、Kafka、Elasticsearch）を開始する。
+
+この形式は実動画でHTTP 200を確認済みであり、UIの単一チャンク実装と複数チャンク実装の双方に一致する。VSTの正式な外部仕様書が入手できた場合は、ヘッダー名・番号規則・応答フィールドを照合し、差分があればUI実装を優先せず修正する。
+
 ## 10. 今後の計画
 
 ### 2026-08-26 実施済みのフェーズA準備
