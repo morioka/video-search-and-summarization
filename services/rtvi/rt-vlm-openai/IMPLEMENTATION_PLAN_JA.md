@@ -364,6 +364,7 @@ uv run --extra dev python scripts/e2e.py \
 - 2026-08-27再開時は、streamprocessingのHTTP待受前に一時的な503が発生したが、コンテナ再起動後に復旧した。`konro_resume4.mp4`でVSTチャンクHTTP 200、Agent `/complete` HTTP 200、RT-VLMキャプション生成を再確認した。
 - 要約経路は一時的に`generate_summary=true`でAgentを起動し、`openai_llm`の解決（`summarize=True`）まで確認した。質問応答は別の直接動画ツールを選択したため、`es_caption`の要約処理呼び出し自体は未確認。設定は既定のfalseへ戻した。
 - 再開後の`konro_resume4`でも`default_9c54c1f9_b05b_4457_ba10_36db22339cb9`に1件のRT-VLMキャプション文書が登録されていることを確認した。キャプション内容の品質評価は行わない。
+- Agentへ「直接動画解析を使わず`lvs_caption_retrieval`だけを使う」と指示し、`collection=konro_resume4`、`query=blue flame`でElasticsearch検索を実行、1.667秒の根拠区間付き回答を得た。保存動画登録→RT-VLM→Kafka/Elasticsearch→Agent検索回答の本質経路を再確認した。
 - 品質評価（代表動画10件、フレーム数・チャンク長比較）は後回し。要約経路は設定済みだが、実測は未実施。
 - フォーク: `codex/openai-rt-vlm`、最終同期コミットはこのメモ更新後のもの。
 - VST `vst-storage.json`の`video_path`をComposeのbind mount先`/home/vst/vst_release/streamer_videos/`へ修正した。初期失敗はVSTバイナリのAPI形式ではなく、streamprocessingイメージ内のlibav/GStreamer依存欠損とbind mount所有権不一致だった。イメージ再作成時にも依存インストールとUID 1000書き込み権限を維持する必要がある。
