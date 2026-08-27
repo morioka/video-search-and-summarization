@@ -3,7 +3,6 @@
 
 """FFmpeg-based metadata probing and deterministic frame selection."""
 
-import asyncio
 import base64
 import json
 import math
@@ -55,7 +54,9 @@ def chunk_ranges(start: float, end: float, chunk_duration: int, overlap: int) ->
 
 class VideoProcessor:
     async def probe(self, path: Path) -> VideoMetadata:
-        return await asyncio.to_thread(self.probe_sync, path)
+        # Direct execution is intentional: WSL/uv environments can leave
+        # subprocesses launched from a worker thread unreaped indefinitely.
+        return self.probe_sync(path)
 
     @staticmethod
     def probe_sync(path: Path) -> VideoMetadata:
@@ -89,7 +90,7 @@ class VideoProcessor:
         width: int | None,
         height: int | None,
     ) -> ExtractedFrames:
-        return await asyncio.to_thread(self.extract_frames_sync, path, chunk, frame_count, width, height)
+        return self.extract_frames_sync(path, chunk, frame_count, width, height)
 
     @classmethod
     def extract_frames_sync(

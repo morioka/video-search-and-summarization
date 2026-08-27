@@ -85,8 +85,15 @@ class StreamRegistry:
                         command += ["-rtsp_transport", "tcp"]
                     command += ["-i", url, "-t", str(self._chunk_seconds), "-an"]
                     command += ["-c:v", "libx264" if url.startswith("rtsp://") else "copy", str(path)]
-                    result = await asyncio.to_thread(
-                        subprocess.run, command, capture_output=True, check=False, timeout=self._chunk_seconds + 30
+                    # uvloop/WSL can leave an asyncio subprocess wait pending even
+                    # after FFmpeg has produced the output. Keep this short capture
+                    # synchronous; the expensive VLM call remains async below.
+                    result = subprocess.run(
+                        command,
+                        capture_output=True,
+                        check=False,
+                        timeout=self._chunk_seconds + 30,
+                        stdin=subprocess.DEVNULL,
                     )
                     if result.returncode != 0 or not path.exists() or path.stat().st_size == 0:
                         raise RuntimeError(result.stderr.decode(errors="replace")[-500:])
