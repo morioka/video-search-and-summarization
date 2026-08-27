@@ -341,3 +341,4 @@ uv run --extra dev python scripts/e2e.py \
 - streamprocessing は `VST_INSTALL_ADDITIONAL_PACKAGES=false` で再作成し、既存イメージ起動時の壊れた dpkg/gstreamer 追加インストールを回避した。恒久対応ではイメージ修正または package state の修復が必要。
 - [x] 動画名だけを指定した Agent 問い合わせでも、`vst_video_list` → VST 名称/UUID 解決 → `lvs_caption_retrieval` → Elasticsearch の自動検索を確認した。重複していた `konro_inspection` は一覧の先頭 UUID を安定して採用し、`default_5be874ef_...` のキャプションを取得できた。
 - [x] `Dockerfile.local-overlay` で既存 Agent イメージへ変更ファイルだけを重ねる軽量ビルドを追加した。`vss-agent-local:3.2.3` を作成し、コンテナ再作成後も動画名からの Elasticsearch 検索を確認した。フルビルドはリリース前の別検証とする。
+- `streamprocessing` の apt 失敗は Ubuntu 24.04 の `libmjpegutils-2.1-0t64` への移行に対して追加インストールスクリプトが旧パッケージ名 `libmjpegutils-2.1-0` を含んでいたことが原因。`user_additional_install.sh` を t64 名へ修正し、gstreamer 導入前に `--reinstall` する修復処理を追加した。次回 `VST_INSTALL_ADDITIONAL_PACKAGES=true` で実起動確認する。

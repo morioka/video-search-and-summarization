@@ -156,6 +156,14 @@ for attempt in $(seq 1 $MAX_RETRIES); do
   fi
 done
 
+# Ubuntu 24.04 renamed mjpegtools' runtime package to the t64 variant. Some
+# VST images carry a stale half-installed record for the old package, which
+# makes every subsequent GStreamer install fail during dependency configure.
+# Reinstall the current package explicitly before installing gstreamer.
+echo "Repairing mjpegtools runtime package (if present)..."
+apt-get install --reinstall -y ${APT_OPTS} libmjpegutils-2.1-0t64 || true
+dpkg --configure -a 2>/dev/null || true
+
 # Install gstreamer1.0-libav with retry logic
 echo "Installing gstreamer1.0-libav..."
 for attempt in $(seq 1 $MAX_RETRIES); do
@@ -189,8 +197,8 @@ for attempt in $(seq 1 $MAX_RETRIES); do
       libvo-aacenc0 libfaad2 libswresample-dev libswresample4 libavutil-dev libavutil58 \
       libavcodec-dev libavcodec60 libavformat-dev libavformat60 libavfilter-dev libavfilter9 \
       libde265-dev libde265-0 libx265-199 libx264-164 libmpeg2encpp-2.1-0 libmpeg2-4 \
-      libmpg123-0 libbs2b0 libreadline8 libcdio19 libdca0 libdvdnav4 libmjpegutils-2.1-0 \
-      liba52-0.7.4 libdvdread8 libsbc1 libzvbi0 libmp3lame0 libsidplay1v5 liblrdf0 libneon27; then
+      libmpg123-0 libbs2b0 libreadline8 libcdio19 libdca0 libdvdnav4 \
+      liba52-0.7.4 libdvdread8 libsbc1 libzvbi0 libmp3lame0 libsidplay1v5 liblrdf0 libneon27 libmjpegutils-2.1-0t64; then
     echo "GStreamer plugins installed successfully"
     break
   else
