@@ -234,6 +234,8 @@ Agentの`POST /api/v1/videos/{sensor_id}/complete`は、現実装ではVSTのタ
 - [x] Agent側LLMをOpenAIへ設定し、キャプション検索の質問応答まで通した。要約専用経路は未評価。
 - [x] Agent側LLMをOpenAIへ設定し、動画一覧と直接VLM質問応答を確認した（検索メタデータ経由ではない）。
 
+`lvs_caption_retrieval`の要約専用経路は、`LVS_CAPTION_GENERATE_SUMMARY=true`で有効化できる設定を追加した。既定値はfalseで、検索結果の引用区間を保持する従来動作を優先する。実コンテナでの要約品質と追加レイテンシは未評価。
+
 この直接VLM経路は、RT-VLMのチャンクキャプションを検索して根拠区間を返す経路とは分けて評価する。
 - [x] OpenAI版RT-VLMでは不要なNVIDIA runtimeとGPU予約を、環境に応じて無効化できる構成を追加した。`rtvi-vlm-openai-no-gpu.override.yml`をComposeへ重ねると、RT-VLMサービスだけCPU実行になる（VIOS/LVSなど他サービスのGPU要件は別）。
 - [ ] RTVI-Embedは当面既存構成を使い、将来Gemma 4系などへ置換する場合は動画・画像・テキスト同一空間、API互換、ベクトル次元、正規化、Elasticsearch再構築を評価する。
