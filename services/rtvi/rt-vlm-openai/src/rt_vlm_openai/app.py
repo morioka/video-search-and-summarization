@@ -3,6 +3,7 @@
 
 """FastAPI application implementing the file-captioning RT-VLM contract."""
 
+import asyncio
 import json
 import logging
 import time
@@ -136,6 +137,7 @@ def create_app(
     runtime_settings = settings or Settings.from_env()
     store = AssetStore(runtime_settings.asset_dir, runtime_settings.max_upload_bytes)
     processor = video_processor or VideoProcessor()
+    request_semaphore = asyncio.Semaphore(runtime_settings.max_concurrent_requests)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -260,15 +262,16 @@ def create_app(
             processed = 0
             try:
                 for chunk in chunks:
-                    response = await _process_chunk(
-                        asset=asset,
-                        chunk=chunk,
-                        request=request,
-                        settings=runtime_settings,
-                        video_processor=processor,
-                        backend=app.state.backend,
-                        query_id=query_id,
-                    )
+                    async with request_semaphore:
+                        response = await _process_chunk(
+                            asset=asset,
+                            chunk=chunk,
+                            request=request,
+                            settings=runtime_settings,
+                            video_processor=processor,
+                            backend=app.state.backend,
+                            query_id=query_id,
+                        )
                     app.state.kafka_publisher.publish(
                         stream_id=str(asset.info.id),
                         chunk=response["chunk_responses"][0],
@@ -300,15 +303,16 @@ def create_app(
         responses = []
         try:
             for chunk in chunks:
-                response = await _process_chunk(
-                        asset=asset,
-                        chunk=chunk,
-                        request=request,
-                        settings=runtime_settings,
-                        video_processor=processor,
-                        backend=app.state.backend,
-                        query_id=query_id,
-                    )
+                async with request_semaphore:
+                    response = await _process_chunk(
+                            asset=asset,
+                            chunk=chunk,
+                            request=request,
+                            settings=runtime_settings,
+                            video_processor=processor,
+                            backend=app.state.backend,
+                            query_id=query_id,
+                        )
                 responses.append(response)
                 app.state.kafka_publisher.publish(
                     stream_id=str(asset.info.id),

@@ -269,7 +269,7 @@ Agentの`POST /api/v1/videos/{sensor_id}/complete`は、現実装ではVSTのタ
 
 ### フェーズC: 運用性とセキュリティ
 
-- [ ] 同時実行数と待ち行列へ上限を設ける。
+- [x] 同時実行数の上限を追加した。`RTVI_OPENAI_MAX_CONCURRENT_REQUESTS`（既定2）で、ストリーミング・通常JSONのチャンク処理を共有Semaphoreで制限する。待ち行列の拒否・優先度制御は未実装。
 - [ ] OpenAI rate limitと一時障害の再試行方針を定める。
 - [ ] アップロードMIMEだけでなく実ファイル形式も検証する。
 - [ ] API認証、監査ログ、秘密情報管理を追加する。
