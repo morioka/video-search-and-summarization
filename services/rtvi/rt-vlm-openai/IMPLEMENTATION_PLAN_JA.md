@@ -186,6 +186,12 @@ NVIDIA Video Search and Summarization（VSS）が参照するRT-VLMを、NVIDIA�
 
 また、OpenAIへ渡しているのは動画そのものではなく、時間チャンクから抽出した静止画である。フレーム間でのみ起きた短い動作は観測できない。フレーム数を増やすと再現率は上がるが、画像入力トークン、料金、レイテンシも増える。
 
+## 9.1 LLM/VLMの実行場所
+
+LLMとVLMは独立して実行場所を選択できる。`LLM_MODE`/`VLM_MODE`は`local`、`local_shared`、`remote`に対応し、`LLM_MODEL_TYPE`/`VLM_MODEL_TYPE`で`nim`または`openai`系の設定を選ぶ。`--use-remote-llm`、`--use-remote-vlm`を指定した場合は、それぞれの`*_ENDPOINT_URL`とモデル名を使う。
+
+現在の検証環境は、Agent LLMが`remote + openai + gpt-4o-mini`、保存動画RT-VLMもOpenAI互換remoteである。ローカルLlama/Nemotron/Qwen系NIMへ戻す場合は、対応するComposeプロファイル、GPU、モデルキャッシュが必要になる。LLMだけremote、VLMだけlocal、またはその逆の混在も可能である。
+
 ## 10. 今後の計画
 
 ### 2026-08-26 実施済みのフェーズA準備
