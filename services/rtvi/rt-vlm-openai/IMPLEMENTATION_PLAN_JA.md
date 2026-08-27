@@ -347,4 +347,5 @@ uv run --extra dev python scripts/e2e.py \
 - `es_caption` の `.keyword` 条件に合わせて Agent の unit test 期待値を更新した。ホスト側に Agent 用 pytest 環境がないため、構文チェックと実コンテナ E2E を検証に用いる。
 - [x] Agent のフル Dockerfile から `vss-agent-local:3.2.4` をビルドした。codec ライブラリ検査は `OK: no patent-encumbered codec libraries in image` だった。フルイメージで Agent を再作成し、動画名から `lvs_caption_retrieval` で Elasticsearch を検索する smoke test（HTTP 200）を確認した。
 - [x] `vss-agent-ui` を起動し、UI は HTTP 200、`__ENV.js` は VST/Agent を HAProxy 外部ポート `7777` に設定していることを確認した。HAProxy ingress 起動後、`GET /vst/api/v1/sensor/streams` が 200 を返すことを確認した。ブラウザ上のファイル選択操作は未実施。
+- [ ] UI相当のnvstreamerチャンクアップロードを実動画で確認する。現状はHAProxy経由・VST直接の両方でVSTが `Timestamp is 0 OR sensorId OR mediaFilePath is not present` (HTTP 500)を返し、Agent互換PUT経路もVSTの保存先権限エラー (HTTP 500)となるため、VST側の受付メタデータまたはストレージ権限の切り分けが必要。
 - `true` 起動の再検証では、コンテナ内 `/var/lib/apt/lists` が書き込み不可で apt が再試行ループになった。`vst.env` の既定値を `false` に変更し、runtime apt を opt-in にした。VST timeline は追加 apt 無効で正常動作しており、恒久的な codec 更新はイメージビルド時に行う。
