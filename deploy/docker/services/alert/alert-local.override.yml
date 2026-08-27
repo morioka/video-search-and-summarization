@@ -1,0 +1,6 @@
+services:
+  alert-bridge:
+    build:
+      context: ${VSS_APPS_DIR}/services/alert
+      dockerfile: Dockerfile.local
+    image: vss-alert-bridge:local

@@ -61,6 +61,17 @@ pip install -r requirements.txt
 
 Or build/run with Docker (see Quick Start).
 
+For a local functional build without the NVIDIA NGC distroless base image:
+
+```bash
+docker build -f services/alert/Dockerfile.local -t vss-alert-bridge:local services/alert
+docker compose -f deploy/docker/services/alert/compose.yml \
+  -f deploy/docker/services/alert/alert-local.override.yml up -d alert-bridge
+```
+
+This image is intended for HTTP/ Kafka/ Elasticsearch integration tests. It is
+not a byte-for-byte replacement for the NVIDIA-distributed runtime image.
+
 ## Quick Start
 
 1. **Configure** — edit `config.yaml`: set the VLM `base_url`/`model`, the
