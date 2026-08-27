@@ -213,8 +213,8 @@ WSL再起動後の復旧では、`elasticsearch`の`mdx_mdx-elastic-data`と`mdx
 - [x] `nv.VisionLLM` protobuf生成とKafka発行の任意機能をOpenAI版RT-VLMへ追加した。
 - [x] Kafka障害時にキャプションAPIを巻き込まないbest-effort発行へ変更した。
 - [x] Kafka対応イメージをLVSへ反映し、RT-VLMとKafkaのhealthcheckを確認した。
-- [ ] KafkaからLogstash、Elasticsearchまでの実メッセージ登録を確認する。
-- [ ] UI登録からRT-VLMキャプション検索までの自動経路を確認する。
+- [x] KafkaからLogstash、Elasticsearchまでの実メッセージ登録を確認した。
+- [x] Agent API の動画登録完了からRT-VLMキャプション検索までの自動経路を確認した。
 
 本日のDocker検証環境は終了時に停止する。次回はCompose起動前にKafkaデータ、Elasticsearch volume、ホストRedisのポート競合を確認する。
 
@@ -230,8 +230,8 @@ WSL再起動後の復旧では、`elasticsearch`の`mdx_mdx-elastic-data`と`mdx
 AgentのOpenAIチャットAPI（`/v1/chat/completions`）では、動画一覧と`konro_inspection`への質問応答がHTTP 200で動作した。ただし質問応答はAgentの`video_understanding`による直接VLM経路であり、RT-VLMキャプションをElasticsearchから検索した結果ではない。動画中で未観測の電池取り外しまで推定する回答もあり、根拠区間付き検索としては未完了である。
 
 Agentの`POST /api/v1/videos/{sensor_id}/complete`は、現実装ではVSTのタイムライン・動画URL取得後にRTVI-CVとRTVI Embedだけを呼ぶ。RTVI VLMの保存動画キャプション呼び出しやKafkaキャプション発行は含まれないため、RT-VLMを置き換えただけではUI登録から検索用キャプション登録まで自動接続されない。
-- [ ] LVS UIから動画を登録し、キャプションが検索用メタデータへ登録されることを確認する（Agent API単体では登録成功、RT-VLM自動実行は未確認）。
-- [ ] Agent側LLMをOpenAIへ設定し、検索、質問応答、要約まで通す。
+- [x] LVS UI相当の Agent 動画登録完了 API から動画を登録し、キャプションを検索用メタデータへ登録した（ブラウザUI操作自体は未実施）。
+- [x] Agent側LLMをOpenAIへ設定し、キャプション検索の質問応答まで通した。要約専用経路は未評価。
 - [x] Agent側LLMをOpenAIへ設定し、動画一覧と直接VLM質問応答を確認した（検索メタデータ経由ではない）。
 
 この直接VLM経路は、RT-VLMのチャンクキャプションを検索して根拠区間を返す経路とは分けて評価する。
@@ -335,7 +335,7 @@ uv run --extra dev python scripts/e2e.py \
 
 - `/api/v1/videos/{sensor_id}/complete` に `RTVI_VLM_BASE_URL` の設定を追加した。
 - 完了 API が VST の生成済み動画 URL を取得し、RT-VLM の `/v1/files` へ同じ sensor UUID でアップロードした後、`/v1/generate_captions` を呼び出す処理を追加した。RT-VLM が発行する Kafka protobuf の UUID と VST sensor UUID を一致させる設計である。
-- まだ実コンテナで `/complete` からの自動実行は未検証。次は Agent イメージを再ビルドし、動画登録から Elasticsearch 登録までを実行する。
+- `/complete` からの自動実行は `vss-agent-local:3.2.2` 系イメージで検証済み。最新の名前解決修正は `Dockerfile.local-overlay` で `vss-agent-local:3.2.3` に反映した。
 - [x] Agent イメージ `vss-agent-local:3.2.2` で `/complete` の実行を確認した。VST timeline、storage URL、RT-VLM `/v1/files`、`/v1/generate_captions`、Kafka、Logstash、Elasticsearch まで自動接続され、`chunks_processed: 1` と HTTP 200 を得た。
 - [x] VST の新しい sensor UUID に対応する `default_5be874ef_...` index が作成され、`blue flame` の検索で 1 件のキャプション（青い炎 1.467 秒、収納部操作 5.200〜13.200 秒）が取得できた。
 - streamprocessing は `VST_INSTALL_ADDITIONAL_PACKAGES=false` で再作成し、既存イメージ起動時の壊れた dpkg/gstreamer 追加インストールを回避した。恒久対応ではイメージ修正または package state の修復が必要。
