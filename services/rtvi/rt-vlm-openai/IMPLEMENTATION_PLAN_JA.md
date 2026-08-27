@@ -336,3 +336,6 @@ uv run --extra dev python scripts/e2e.py \
 - `/api/v1/videos/{sensor_id}/complete` に `RTVI_VLM_BASE_URL` の設定を追加した。
 - 完了 API が VST の生成済み動画 URL を取得し、RT-VLM の `/v1/files` へ同じ sensor UUID でアップロードした後、`/v1/generate_captions` を呼び出す処理を追加した。RT-VLM が発行する Kafka protobuf の UUID と VST sensor UUID を一致させる設計である。
 - まだ実コンテナで `/complete` からの自動実行は未検証。次は Agent イメージを再ビルドし、動画登録から Elasticsearch 登録までを実行する。
+- [x] Agent イメージ `vss-agent-local:3.2.2` で `/complete` の実行を確認した。VST timeline、storage URL、RT-VLM `/v1/files`、`/v1/generate_captions`、Kafka、Logstash、Elasticsearch まで自動接続され、`chunks_processed: 1` と HTTP 200 を得た。
+- [x] VST の新しい sensor UUID に対応する `default_5be874ef_...` index が作成され、`blue flame` の検索で 1 件のキャプション（青い炎 1.467 秒、収納部操作 5.200〜13.200 秒）が取得できた。
+- streamprocessing は `VST_INSTALL_ADDITIONAL_PACKAGES=false` で再作成し、既存イメージ起動時の壊れた dpkg/gstreamer 追加インストールを回避した。恒久対応ではイメージ修正または package state の修復が必要。
