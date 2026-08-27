@@ -29,8 +29,10 @@ NVIDIA Video Search and Summarization（VSS）が参照するRT-VLMを、NVIDIA�
 | SSE応答 | 完了 | usageイベントと`[DONE]`を返す |
 | Dockerイメージ | 完了 | 非root、FFmpeg、curlを搭載 |
 | 実OpenAI API検証 | 完了 | `gpt-4.1-mini`で指定動画を検証 |
-| VSS全体への組み込み | 未完了 | LVS、Agent、検索・要約を含む統合が必要 |
-| RTSP、Kafka、音声 | 未実装 | 将来対応として分離 |
+| VSS全体への組み込み | 保存動画で完了 | LVS、Agent、検索・要約まで実動画で確認 |
+| RTSP | 最小実装 | `/v1/streams/add`でFFmpegチャンク処理。再接続・音声・全API互換は未完了 |
+| Kafka | 実装済み | 任意設定時にVisionLLM protobufを発行 |
+| 音声 | 未実装 | OpenAI互換サービスでは無効化 |
 
 ## 4. 実装した構成
 
@@ -70,6 +72,7 @@ NVIDIA Video Search and Summarization（VSS）が参照するRT-VLMを、NVIDIA�
 - `GET /v1/files`
 - `DELETE /v1/files/{id}`
 - `POST /v1/generate_captions`
+- `POST /v1/streams/add`、`GET /v1/streams/get-stream-info`、`DELETE /v1/streams/delete/{id}`（最小RTSP/fileワーカー）
 
 `generate_captions`では、少なくとも次の入力を処理する。
 
