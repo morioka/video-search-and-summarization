@@ -13,7 +13,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Protocol
 from uuid import UUID, uuid4
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Body, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from openai import OpenAIError
 from starlette.requests import Request
@@ -226,6 +226,38 @@ def create_app(
         if not await app.state.streams.remove(stream_id):
             raise HTTPException(status_code=404, detail=f"No such stream {stream_id}")
         return {"id": stream_id, "deleted": True}
+
+    @app.delete("/v1/generate_captions/{stream_id}")
+    async def stop_stream_captions(stream_id: str) -> dict[str, Any]:
+        """Compatibility stop endpoint used by the NVIDIA client."""
+        if not await app.state.streams.remove(stream_id):
+            raise HTTPException(status_code=404, detail=f"No such stream {stream_id}")
+        return {"id": stream_id, "stopped": True}
+
+    @app.post("/v1/stream/add")
+    async def add_stream_compat(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+        value = payload.get("value", payload)
+        url = value.get("camera_url") or value.get("liveStreamUrl")
+        camera_id = value.get("camera_id") or value.get("id")
+        if not url or not camera_id:
+            raise HTTPException(status_code=422, detail="value.camera_url and value.camera_id are required")
+        stream_id = await app.state.streams.add(
+            stream_id=str(camera_id),
+            url=str(url),
+            description=str(value.get("metadata", {}).get("prompt") or value.get("description") or ""),
+            sensor_name=str(value.get("sensor_name") or camera_id),
+        )
+        return {"camera_id": str(camera_id), "asset_id": stream_id, "status": "processing", "inference": True}
+
+    @app.post("/v1/stream/remove")
+    async def remove_stream_compat(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+        value = payload.get("value", payload)
+        stream_id = value.get("camera_id") or value.get("id")
+        if not stream_id:
+            raise HTTPException(status_code=422, detail="value.camera_id is required")
+        if not await app.state.streams.remove(str(stream_id)):
+            raise HTTPException(status_code=404, detail=f"No such stream {stream_id}")
+        return {"camera_id": str(stream_id), "asset_id": str(stream_id), "status": "removed"}
 
     @app.get("/v1/models")
     async def models() -> JsonDict:

@@ -184,6 +184,23 @@ async def test_stream_lifecycle_contract(tmp_path: Path) -> None:
         assert removed.json() == {"id": "camera-1", "deleted": True}
 
 
+async def test_nvidia_stream_alias_contract(tmp_path: Path) -> None:
+    app = create_app(settings(tmp_path), backend=FakeBackend(), video_processor=FakeVideoProcessor())
+    transport = httpx.ASGITransport(app=app)
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(transport=transport, base_url="http://test") as client,
+    ):
+        added = await client.post(
+            "/v1/stream/add",
+            json={"key": "sensor", "value": {"camera_id": "camera-compat", "camera_url": "file:///missing.mp4"}},
+        )
+        assert added.status_code == 200
+        assert added.json()["asset_id"] == "camera-compat"
+        stopped = await client.delete("/v1/generate_captions/camera-compat")
+        assert stopped.json() == {"id": "camera-compat", "stopped": True}
+
+
 async def test_file_stream_worker_processes_real_chunk(tmp_path: Path) -> None:
     source = Path("/home/morioka/temp/Video-to-SOP-Generator/Videos/konro_inspection.mp4")
     if not source.exists():
