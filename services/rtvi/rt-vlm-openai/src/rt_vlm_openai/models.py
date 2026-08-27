@@ -102,4 +102,23 @@ class OpenAIResult(StrictModel):
     output_tokens: int | None = None
 
 
+class StreamInput(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    liveStreamUrl: str
+    description: str = ""
+    sensor_name: str = ""
+    id: str | None = None
+
+
+class AddStreamsRequest(BaseModel):
+    streams: list[StreamInput]
+
+
+class StreamResponse(StrictModel):
+    id: str
+    liveStreamUrl: str
+    description: str = ""
+    sensor_name: str = ""
+
+
 JsonDict = dict[str, Any]

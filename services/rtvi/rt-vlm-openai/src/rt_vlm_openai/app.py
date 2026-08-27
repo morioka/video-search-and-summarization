@@ -31,6 +31,7 @@ from .models import (
 )
 from .openai_backend import OpenAIBackend
 from .kafka_publisher import VisionLLMKafkaPublisher
+from .streams import StreamRegistry
 from .video import VideoChunk, VideoMetadata, VideoProcessor, chunk_ranges
 
 logger = logging.getLogger(__name__)
@@ -157,9 +158,18 @@ def create_app(
             max_tokens=runtime_settings.max_tokens,
             max_retries=runtime_settings.max_retries,
         )
+        app.state.streams = StreamRegistry(
+            processor=processor,
+            backend=app.state.backend,
+            publisher=publisher,
+            semaphore=request_semaphore,
+            chunk_seconds=runtime_settings.default_chunk_duration,
+            frames=runtime_settings.default_frames_per_chunk,
+        )
         try:
             yield
         finally:
+            await app.state.streams.close()
             publisher.close()
 
     app = FastAPI(title="VSS RT-VLM OpenAI Compatibility Service", version="0.1.0", lifespan=lifespan)
@@ -183,6 +193,35 @@ def create_app(
     @app.get("/v1/health/live")
     async def live() -> JsonDict:
         return {"status": "live"}
+
+    @app.post("/v1/streams/add")
+    async def add_streams(payload: Any) -> dict[str, Any]:
+        from .models import AddStreamsRequest
+        request = AddStreamsRequest.model_validate(payload)
+        results = []
+        errors = []
+        for stream in request.streams:
+            try:
+                stream_id = await app.state.streams.add(
+                    stream_id=stream.id,
+                    url=stream.liveStreamUrl,
+                    description=stream.description,
+                    sensor_name=stream.sensor_name,
+                )
+                results.append({"id": stream_id, "liveStreamUrl": stream.liveStreamUrl})
+            except ValueError as exc:
+                errors.append({"id": stream.id, "error": str(exc)})
+        return {"results": results, "errors": errors}
+
+    @app.get("/v1/streams/get-stream-info")
+    async def get_stream_info() -> dict[str, Any]:
+        return {"results": await app.state.streams.list()}
+
+    @app.delete("/v1/streams/delete/{stream_id}")
+    async def delete_stream(stream_id: str) -> dict[str, Any]:
+        if not await app.state.streams.remove(stream_id):
+            raise HTTPException(status_code=404, detail=f"No such stream {stream_id}")
+        return {"id": stream_id, "deleted": True}
 
     @app.get("/v1/models")
     async def models() -> JsonDict:

@@ -13,9 +13,12 @@ Supported endpoints:
 - `GET /v1/models`
 - `POST /v1/files`, `GET /v1/files`, and `DELETE /v1/files/{id}`
 - `POST /v1/generate_captions`
+- `POST /v1/streams/add`, `GET /v1/streams/get-stream-info`, and `DELETE /v1/streams/delete/{id}` (best-effort RTSP/file worker)
 
-This first version intentionally does not implement RTSP, Kafka/NvSchema publishing, URL ingestion, audio, embeddings,
-or the OpenAI-compatible `/v1/chat/completions` facade.
+The stream worker captures short FFmpeg chunks from RTSP (or `file://` test sources), sends them through the same
+OpenAI multimodal path, and publishes optional Kafka captions. It is intentionally a minimal compatibility layer:
+reconnection policy, audio, URL asset ingestion, embeddings, and the OpenAI-compatible `/v1/chat/completions` facade
+remain outside this service.
 
 ## Run locally
 
