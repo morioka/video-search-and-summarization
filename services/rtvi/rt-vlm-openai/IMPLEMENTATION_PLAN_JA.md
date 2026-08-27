@@ -342,4 +342,5 @@ uv run --extra dev python scripts/e2e.py \
 - [x] 動画名だけを指定した Agent 問い合わせでも、`vst_video_list` → VST 名称/UUID 解決 → `lvs_caption_retrieval` → Elasticsearch の自動検索を確認した。重複していた `konro_inspection` は一覧の先頭 UUID を安定して採用し、`default_5be874ef_...` のキャプションを取得できた。
 - [x] `Dockerfile.local-overlay` で既存 Agent イメージへ変更ファイルだけを重ねる軽量ビルドを追加した。`vss-agent-local:3.2.3` を作成し、コンテナ再作成後も動画名からの Elasticsearch 検索を確認した。フルビルドはリリース前の別検証とする。
 - `streamprocessing` の apt 失敗は Ubuntu 24.04 の `libmjpegutils-2.1-0t64` への移行に対して追加インストールスクリプトが旧パッケージ名 `libmjpegutils-2.1-0` を含んでいたことが原因。`user_additional_install.sh` を t64 名へ修正し、gstreamer 導入前に `--reinstall` する修復処理を追加した。次回 `VST_INSTALL_ADDITIONAL_PACKAGES=true` で実起動確認する。
+- `es_caption` の `.keyword` 条件に合わせて Agent の unit test 期待値を更新した。ホスト側に Agent 用 pytest 環境がないため、構文チェックと実コンテナ E2E を検証に用いる。
 - `true` 起動の再検証では、コンテナ内 `/var/lib/apt/lists` が書き込み不可で apt が再試行ループになった。`vst.env` の既定値を `false` に変更し、runtime apt を opt-in にした。VST timeline は追加 apt 無効で正常動作しており、恒久的な codec 更新はイメージビルド時に行う。
