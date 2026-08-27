@@ -43,6 +43,7 @@ class FakeVideoProcessor:
         return ExtractedFrames(images=images, latency_ms=5.0)
 
 
+
 def settings(tmp_path: Path) -> Settings:
     return Settings(
         model="openai-test-vlm",

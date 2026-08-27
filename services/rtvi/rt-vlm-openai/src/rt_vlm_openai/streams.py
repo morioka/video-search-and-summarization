@@ -82,7 +82,8 @@ class StreamRegistry:
                     command = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y"]
                     if url.startswith("rtsp://"):
                         command += ["-rtsp_transport", "tcp"]
-                    command += ["-i", url, "-t", str(self._chunk_seconds), "-an", "-c:v", "libx264", str(path)]
+                    command += ["-i", url, "-t", str(self._chunk_seconds), "-an"]
+                    command += ["-c:v", "libx264" if url.startswith("rtsp://") else "copy", str(path)]
                     process = await asyncio.create_subprocess_exec(*command, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.PIPE)
                     try:
                         _, stderr = await process.communicate()
