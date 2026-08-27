@@ -6,12 +6,16 @@
 import asyncio
 import json
 import logging
+import os
+import tempfile
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any, Protocol
 from uuid import UUID, uuid4
+from urllib.request import Request as UrlRequest, urlopen
 
 from fastapi import Body, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
@@ -290,6 +294,79 @@ def create_app(
                 }
             ],
         }
+
+    @app.post("/v1/chat/completions")
+    async def chat_completions(payload: dict[str, Any] = Body(...)) -> JsonDict:
+        """Small OpenAI-compatible bridge for Alert's video_url requests.
+
+        The native RT-VLM contract remains file/caption based. This endpoint
+        adapts a single video URL into one caption request for clients that
+        only speak Chat Completions.
+        """
+        messages = payload.get("messages") or []
+        media_url: str | None = None
+        prompt_parts: list[str] = []
+        for message in messages:
+            content = message.get("content", "") if isinstance(message, dict) else ""
+            items = content if isinstance(content, list) else [{"type": "text", "text": content}]
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                if item.get("type") == "text" and item.get("text"):
+                    prompt_parts.append(str(item["text"]))
+                if item.get("type") == "video_url":
+                    value = item.get("video_url", {})
+                    media_url = value.get("url") if isinstance(value, dict) else str(value)
+        if not media_url:
+            raise HTTPException(status_code=422, detail="exactly one video_url is required")
+
+        request_id = uuid4()
+        suffix = os.path.splitext(media_url.split("?", 1)[0])[1] or ".mp4"
+        temp_path: str | None = None
+        try:
+            with tempfile.NamedTemporaryFile(prefix="rtvi-chat-", suffix=suffix, delete=False) as handle:
+                temp_path = handle.name
+
+            def download() -> None:
+                with urlopen(UrlRequest(media_url, headers={"User-Agent": "vss-rt-vlm"}), timeout=60) as response:
+                    with open(temp_path, "wb") as output:
+                        while chunk := response.read(1024 * 1024):
+                            output.write(chunk)
+
+            await asyncio.to_thread(download)
+            metadata = await processor.probe(Path(temp_path))
+            request = GenerateCaptionsRequest(
+                id=request_id,
+                prompt="\n".join(prompt_parts) or "Describe the observed video.",
+                model=str(payload.get("model") or runtime_settings.model),
+                max_tokens=payload.get("max_tokens"),
+            )
+            extracted = await processor.extract_frames(
+                Path(temp_path), VideoChunk(index=0, start=0, end=metadata.duration),
+                _frame_count(request, VideoChunk(index=0, start=0, end=metadata.duration), runtime_settings),
+                None, None,
+            )
+            result, _latency = await app.state.backend.caption(
+                request, extracted.images, start=0, end=metadata.duration,
+            )
+            return {
+                "id": f"chatcmpl-{request_id}",
+                "object": "chat.completion",
+                "created": int(time.time()),
+                "model": request.model,
+                "choices": [{"index": 0, "message": {"role": "assistant", "content": result.content}, "finish_reason": "stop"}],
+            }
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.exception("Chat compatibility request failed")
+            raise HTTPException(status_code=502, detail=f"video inference failed: {exc}") from exc
+        finally:
+            if temp_path:
+                try:
+                    os.unlink(temp_path)
+                except OSError:
+                    pass
 
     @app.post("/v1/files", response_model=FileInfo)
     async def upload_file(
