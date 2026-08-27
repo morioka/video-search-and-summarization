@@ -220,6 +220,8 @@ Alertサービスの設定では、Incident protobufの入力トピックは`ale
 
 既存のサンプル変換では、少なくとも`timestamp`、`end`、`sensorId`、`objectIds`、`isAnomaly`、`category`、`place`がIncident本体に設定され、VLM説明などは`info` mapへ文字列として格納される。RT-VLM側にこのprotobuf依存を直接追加するのではなく、まずAlert側の`vlm_enhanced_sink`またはHTTP投入経路を再利用する方針とする。
 
+AlertのHTTP入口は`POST /api/v1/incidents`で、JSONの場合は少なくとも`id`、`timestamp`、`sensorId`を受け付け、Alert側でIncident protobufへ変換して`alert-bridge-incidents`へ発行する。したがって、将来のアラート接続はこのHTTP入口を利用するのが最小依存となる。
+
 ## 10. 今後の計画
 
 ### 2026-08-26 実施済みのフェーズA準備
