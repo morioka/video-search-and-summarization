@@ -75,7 +75,13 @@ class StreamRegistry:
     async def list(self) -> list[dict[str, object]]:
         async with self._lock:
             return [
-                {"id": e.stream_id, "liveStreamUrl": e.url, "description": e.description, "sensor_name": e.sensor_name}
+                {
+                    "id": e.stream_id,
+                    "liveStreamUrl": e.url,
+                    "description": e.description,
+                    "sensor_name": e.sensor_name,
+                    "inference_active": not e.task.done(),
+                }
                 for e in self._entries.values()
             ]
 
