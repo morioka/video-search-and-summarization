@@ -344,4 +344,5 @@ uv run --extra dev python scripts/e2e.py \
 - `streamprocessing` の apt 失敗は Ubuntu 24.04 の `libmjpegutils-2.1-0t64` への移行に対して追加インストールスクリプトが旧パッケージ名 `libmjpegutils-2.1-0` を含んでいたことが原因。`user_additional_install.sh` を t64 名へ修正し、gstreamer 導入前に `--reinstall` する修復処理を追加した。次回 `VST_INSTALL_ADDITIONAL_PACKAGES=true` で実起動確認する。
 - `es_caption` の `.keyword` 条件に合わせて Agent の unit test 期待値を更新した。ホスト側に Agent 用 pytest 環境がないため、構文チェックと実コンテナ E2E を検証に用いる。
 - [x] Agent のフル Dockerfile から `vss-agent-local:3.2.4` をビルドした。codec ライブラリ検査は `OK: no patent-encumbered codec libraries in image` だった。フルイメージで Agent を再作成し、動画名から `lvs_caption_retrieval` で Elasticsearch を検索する smoke test（HTTP 200）を確認した。
+- [x] `vss-agent-ui` を起動し、UI は HTTP 200、`__ENV.js` は VST/Agent を HAProxy 外部ポート `7777` に設定していることを確認した。HAProxy ingress 起動後、`GET /vst/api/v1/sensor/streams` が 200 を返すことを確認した。ブラウザ上のファイル選択操作は未実施。
 - `true` 起動の再検証では、コンテナ内 `/var/lib/apt/lists` が書き込み不可で apt が再試行ループになった。`vst.env` の既定値を `false` に変更し、runtime apt を opt-in にした。VST timeline は追加 apt 無効で正常動作しており、恒久的な codec 更新はイメージビルド時に行う。
