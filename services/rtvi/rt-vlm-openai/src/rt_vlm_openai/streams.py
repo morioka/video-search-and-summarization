@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import multiprocessing
 import subprocess
 import tempfile
 from dataclasses import dataclass
@@ -15,6 +16,11 @@ from .models import FileInfo, GenerateCaptionsRequest
 from .video import VideoChunk, VideoProcessor
 
 logger = logging.getLogger(__name__)
+
+
+def _capture_chunk(command: list[str]) -> None:
+    """Run FFmpeg outside the API event loop."""
+    subprocess.run(command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
 
 
 @dataclass
@@ -85,18 +91,18 @@ class StreamRegistry:
                         command += ["-rtsp_transport", "tcp"]
                     command += ["-i", url, "-t", str(self._chunk_seconds), "-an"]
                     command += ["-c:v", "libx264" if url.startswith("rtsp://") else "copy", str(path)]
-                    # uvloop/WSL can leave an asyncio subprocess wait pending even
-                    # after FFmpeg has produced the output. Keep this short capture
-                    # synchronous; the expensive VLM call remains async below.
-                    result = subprocess.run(
-                        command,
-                        capture_output=True,
-                        check=False,
-                        timeout=self._chunk_seconds + 30,
-                        stdin=subprocess.DEVNULL,
-                    )
-                    if result.returncode != 0 or not path.exists() or path.stat().st_size == 0:
-                        raise RuntimeError(result.stderr.decode(errors="replace")[-500:])
+                    process = multiprocessing.Process(target=_capture_chunk, args=(command,), daemon=True)
+                    process.start()
+                    try:
+                        while process.is_alive():
+                            await asyncio.sleep(0.1)
+                    except asyncio.CancelledError:
+                        process.terminate()
+                        process.join(timeout=5)
+                        raise
+                    process.join()
+                    if process.exitcode != 0 or not path.exists() or path.stat().st_size == 0:
+                        raise RuntimeError(f"FFmpeg capture failed with exit code {process.exitcode}")
                     metadata = await self._processor.probe(path)
                     duration = metadata.duration
                     info = FileInfo(id=uuid4(), bytes=path.stat().st_size, filename=f"{stream_id}-{chunk_index}.mp4", sensor_name=sensor_name, media_type="video")

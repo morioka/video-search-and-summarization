@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import base64
+import asyncio
 import json
 from pathlib import Path
 
@@ -12,6 +13,8 @@ from rt_vlm_openai.app import create_app
 from rt_vlm_openai.config import Settings
 from rt_vlm_openai.models import GenerateCaptionsRequest, OpenAIResult
 from rt_vlm_openai.video import ExtractedFrames, VideoMetadata
+from rt_vlm_openai.streams import StreamRegistry
+from rt_vlm_openai.video import VideoProcessor
 
 
 class FakeBackend:
@@ -30,6 +33,14 @@ class FailingBackend:
 
     async def caption(self, request, images, *, start, end):
         raise APIConnectionError(request=httpx.Request("POST", "https://example.invalid/v1/chat/completions"))
+
+
+class FakePublisher:
+    def __init__(self) -> None:
+        self.messages: list[dict] = []
+
+    def publish(self, **message) -> None:
+        self.messages.append(message)
 
 
 class FakeVideoProcessor:
@@ -173,3 +184,19 @@ async def test_stream_lifecycle_contract(tmp_path: Path) -> None:
         assert listed.json()["results"][0]["id"] == "camera-1"
         removed = await client.delete("/v1/streams/delete/camera-1")
         assert removed.json() == {"id": "camera-1", "deleted": True}
+
+
+async def test_file_stream_worker_processes_real_chunk(tmp_path: Path) -> None:
+    source = Path("/home/morioka/temp/Video-to-SOP-Generator/Videos/konro_inspection.mp4")
+    if not source.exists():
+        return
+    publisher = FakePublisher()
+    registry = StreamRegistry(
+        processor=VideoProcessor(), backend=FakeBackend(), publisher=publisher,
+        semaphore=asyncio.Semaphore(1), chunk_seconds=1, frames=2,
+    )
+    stream_id = await registry.add(stream_id="local-file", url=source.as_uri(), description="test", sensor_name="cam")
+    await asyncio.sleep(3)
+    await registry.remove(stream_id)
+    assert publisher.messages
+    assert publisher.messages[0]["stream_id"] == "local-file"
