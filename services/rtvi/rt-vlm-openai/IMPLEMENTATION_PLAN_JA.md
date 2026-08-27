@@ -323,3 +323,10 @@ uv run --extra dev python scripts/e2e.py \
 保存動画向けRT-VLMのOpenAI置換は実行可能であり、API、Docker、実動画、実OpenAIまで動作を確認した。したがって、非公開NGCコンテナがなくても、この範囲は独立実装で代替できる。
 
 ただし、これはNVIDIA RT-VLM全機能の再現ではない。次の技術的な節目は、VSS全体へ組み込み、LVSの検索登録とAgentの質問応答まで通すことである。品質面では、静止画サンプリングに起因する未観測動作の見落としとVLMの推定を、評価セットに基づいて管理する必要がある。
+## 2026-08-27: Agent から Elasticsearch 検索までの疎通確認
+
+- VST の `vst_video_list` が 502 になる問題は、`vss-vios-postgres` 停止後に sensor が再起動されていなかったことが原因だった。PostgreSQL 起動後に `vss-vios-sensor` を再起動し、`GET http://127.0.0.1:30888/vst/api/v1/sensor/streams` が 200 で `konro_inspection` を返すことを確認した。
+- Elasticsearch の dynamic mapping では `metadata.content_metadata.uuid`、`doc_type`、`camera_id` が `text` + `.keyword` になっていた。`services/agent/src/lib/knowledge/adapters/es_caption.py` の `term` 条件を `.keyword` に修正した。
+- 修正後、Agent API に対して `lvs_caption_retrieval` を明示した問い合わせを実行し、Agent が `es_caption` backend 経由で Elasticsearch の 1 件を取得した。取得内容には、青い炎 `[3.733s]`、電池収納部の開閉 `[11.733s-15.233s]`、コンロを消してから電池収納部を開ける安全上の記述が含まれていた。
+- これにより、`OpenAI RT-VLM -> Kafka (nv.VisionLLM) -> Logstash -> Elasticsearch -> Agent/lvs_caption_retrieval (es_caption)` の検索経路が実データで確認できた。
+- VST sensor は Redis (`127.0.0.1:6379`) への接続失敗を警告しているが、ストリーム一覧 API と今回の検索経路には影響しなかった。`vss-vios-streamprocessing` はイメージ起動時の dpkg/gstreamer パッケージ不整合が残っており、別途課題とする。
