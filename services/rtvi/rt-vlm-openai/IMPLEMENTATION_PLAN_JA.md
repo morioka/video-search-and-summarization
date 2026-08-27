@@ -370,3 +370,4 @@ uv run --extra dev python scripts/e2e.py \
 - フォーク: `codex/openai-rt-vlm`、最終同期コミットはこのメモ更新後のもの。
 - VST `vst-storage.json`の`video_path`をComposeのbind mount先`/home/vst/vst_release/streamer_videos/`へ修正した。初期失敗はVSTバイナリのAPI形式ではなく、streamprocessingイメージ内のlibav/GStreamer依存欠損とbind mount所有権不一致だった。イメージ再作成時にも依存インストールとUID 1000書き込み権限を維持する必要がある。
 - `true` 起動の再検証では、コンテナ内 `/var/lib/apt/lists` が書き込み不可で apt が再試行ループになった。`vst.env` の既定値を `false` に変更し、runtime apt を opt-in にした。VST timeline は追加 apt 無効で正常動作しており、恒久的な codec 更新はイメージビルド時に行う。
+- Docker LVSの`config.yml`と`config_rag.yml`で`openai_vlm`にも`base_url: ${VLM_BASE_URL}/v1`を明示した。これによりOpenAI本体だけでなく、Qwen/vLLM等のOpenAI互換VLMを`VLM_BASE_URL`と`VLM_NAME`だけで選択でき、`openai_llm`との個別切り替えも設定上そろった。

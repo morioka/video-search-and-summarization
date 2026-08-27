@@ -320,6 +320,7 @@ llms:
   openai_vlm:
     _type: openai
     model_name: ${VLM_NAME}
+    base_url: ${VLM_BASE_URL}/v1
     temperature: 0.0
     max_tokens: 4096
 
