@@ -218,6 +218,12 @@ def create_app(
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         except ValueError as exc:
             raise HTTPException(status_code=413, detail=str(exc)) from exc
+        if media_type == "video":
+            try:
+                await processor.probe(asset.path)
+            except Exception as exc:
+                await store.delete(asset_id)
+                raise HTTPException(status_code=422, detail=f"Invalid video: {exc}") from exc
         return asset.info
 
     @app.get("/v1/files", response_model=ListFilesResponse)
