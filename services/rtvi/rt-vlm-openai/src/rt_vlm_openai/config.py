@@ -30,7 +30,7 @@ class Settings:
     max_tokens: int
     request_timeout_seconds: int
     max_concurrent_requests: int
-    max_retries: int
+    max_retries: int = 3
     kafka_bootstrap_servers: str = ""
     kafka_topic: str = "mdx-vlm-captions"
 

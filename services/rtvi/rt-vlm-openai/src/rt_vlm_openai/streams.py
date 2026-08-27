@@ -84,7 +84,16 @@ class StreamRegistry:
                         command += ["-rtsp_transport", "tcp"]
                     command += ["-i", url, "-t", str(self._chunk_seconds), "-an", "-c:v", "libx264", str(path)]
                     process = await asyncio.create_subprocess_exec(*command, stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.PIPE)
-                    _, stderr = await process.communicate()
+                    try:
+                        _, stderr = await process.communicate()
+                    except asyncio.CancelledError:
+                        if process.returncode is None:
+                            process.kill()
+                        try:
+                            await asyncio.wait_for(process.wait(), timeout=5)
+                        except asyncio.TimeoutError:
+                            logger.warning("ffmpeg process did not exit after cancellation: %s", stream_id)
+                        raise
                     if process.returncode != 0 or not path.exists() or path.stat().st_size == 0:
                         raise RuntimeError(stderr.decode(errors="replace")[-500:])
                     metadata = await self._processor.probe(path)

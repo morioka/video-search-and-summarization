@@ -55,6 +55,7 @@ def settings(tmp_path: Path) -> Settings:
         max_frames_per_chunk=4,
         max_tokens=100,
         request_timeout_seconds=10,
+        max_concurrent_requests=2,
     )
 
 
@@ -152,3 +153,22 @@ async def test_nonstream_openai_failure_returns_json_502(tmp_path: Path) -> None
 
     assert response.status_code == 502
     assert response.json()["detail"].startswith("OpenAI-compatible VLM request failed:")
+
+
+async def test_stream_lifecycle_contract(tmp_path: Path) -> None:
+    app = create_app(settings(tmp_path), backend=FakeBackend(), video_processor=FakeVideoProcessor())
+    transport = httpx.ASGITransport(app=app)
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(transport=transport, base_url="http://test") as client,
+    ):
+        added = await client.post(
+            "/v1/streams/add",
+            json={"streams": [{"id": "camera-1", "liveStreamUrl": "file:///missing.mp4", "description": "test"}]},
+        )
+        assert added.status_code == 200
+        assert added.json()["results"][0]["id"] == "camera-1"
+        listed = await client.get("/v1/streams/get-stream-info")
+        assert listed.json()["results"][0]["id"] == "camera-1"
+        removed = await client.delete("/v1/streams/delete/camera-1")
+        assert removed.json() == {"id": "camera-1", "deleted": True}

@@ -23,6 +23,7 @@ from .assets import Asset, AssetStore
 from .config import Settings
 from .models import (
     DeleteFileResponse,
+    AddStreamsRequest,
     FileInfo,
     GenerateCaptionsRequest,
     JsonDict,
@@ -195,9 +196,7 @@ def create_app(
         return {"status": "live"}
 
     @app.post("/v1/streams/add")
-    async def add_streams(payload: Any) -> dict[str, Any]:
-        from .models import AddStreamsRequest
-        request = AddStreamsRequest.model_validate(payload)
+    async def add_streams(request: AddStreamsRequest) -> dict[str, Any]:
         results = []
         errors = []
         for stream in request.streams:
