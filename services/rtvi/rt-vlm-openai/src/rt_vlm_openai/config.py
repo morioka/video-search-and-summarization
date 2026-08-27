@@ -30,6 +30,7 @@ class Settings:
     max_tokens: int
     request_timeout_seconds: int
     max_concurrent_requests: int
+    max_retries: int
     kafka_bootstrap_servers: str = ""
     kafka_topic: str = "mdx-vlm-captions"
 
@@ -49,6 +50,7 @@ class Settings:
             max_tokens=_positive_int("VLM_MAX_GENERATION_TOKENS", 4096),
             request_timeout_seconds=_positive_int("RTVI_OPENAI_REQUEST_TIMEOUT_SECONDS", 180),
             max_concurrent_requests=_positive_int("RTVI_OPENAI_MAX_CONCURRENT_REQUESTS", 2),
+            max_retries=max(0, int(os.getenv("RTVI_OPENAI_MAX_RETRIES", "3"))),
             kafka_bootstrap_servers=os.getenv("RTVI_OPENAI_KAFKA_BOOTSTRAP_SERVERS", "").strip(),
             kafka_topic=os.getenv("RTVI_OPENAI_KAFKA_TOPIC", "mdx-vlm-captions").strip(),
         )

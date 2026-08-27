@@ -153,6 +153,7 @@ def create_app(
             base_url=runtime_settings.base_url,
             timeout=runtime_settings.request_timeout_seconds,
             max_tokens=runtime_settings.max_tokens,
+            max_retries=runtime_settings.max_retries,
         )
         try:
             yield
