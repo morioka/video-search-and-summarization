@@ -86,7 +86,10 @@ async def get_name_to_stream_id_map(vst_internal_url: str | None = None) -> dict
                             stream_id = next(iter(file))
                             if isinstance(file[stream_id], list) and len(file[stream_id]) > 0:
                                 name = file[stream_id][0]["name"]
-                                mapping[name] = stream_id
+                                # A restarted VST can temporarily expose the
+                                # same filename more than once. Keep the first
+                                # entry so name resolution remains stable.
+                                mapping.setdefault(name, stream_id)
                             else:
                                 logger.warning(f"Stream ID {stream_id} is empty, skipping")
                         return mapping

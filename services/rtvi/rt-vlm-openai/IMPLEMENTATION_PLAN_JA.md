@@ -339,3 +339,4 @@ uv run --extra dev python scripts/e2e.py \
 - [x] Agent イメージ `vss-agent-local:3.2.2` で `/complete` の実行を確認した。VST timeline、storage URL、RT-VLM `/v1/files`、`/v1/generate_captions`、Kafka、Logstash、Elasticsearch まで自動接続され、`chunks_processed: 1` と HTTP 200 を得た。
 - [x] VST の新しい sensor UUID に対応する `default_5be874ef_...` index が作成され、`blue flame` の検索で 1 件のキャプション（青い炎 1.467 秒、収納部操作 5.200〜13.200 秒）が取得できた。
 - streamprocessing は `VST_INSTALL_ADDITIONAL_PACKAGES=false` で再作成し、既存イメージ起動時の壊れた dpkg/gstreamer 追加インストールを回避した。恒久対応ではイメージ修正または package state の修復が必要。
+- [x] 動画名だけを指定した Agent 問い合わせでも、`vst_video_list` → VST 名称/UUID 解決 → `lvs_caption_retrieval` → Elasticsearch の自動検索を確認した。重複していた `konro_inspection` は一覧の先頭 UUID を安定して採用し、`default_5be874ef_...` のキャプションを取得できた。
