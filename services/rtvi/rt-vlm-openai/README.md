@@ -14,6 +14,8 @@ Supported endpoints:
 - `POST /v1/files`, `GET /v1/files`, and `DELETE /v1/files/{id}`
 - `POST /v1/generate_captions`
 - `POST /v1/streams/add`, `GET /v1/streams/get-stream-info`, and `DELETE /v1/streams/delete/{id}` (best-effort RTSP/file worker)
+- NVIDIA client compatibility aliases: `POST /v1/stream/add`, `POST /v1/stream/remove`, `GET /v1/stream/get-stream-info`,
+  `DELETE /v1/generate_captions/{id}`, and `DELETE /v1/streams/delete-batch`
 
 The stream worker captures short FFmpeg chunks from RTSP (or `file://` test sources), sends them through the same
 OpenAI multimodal path, and publishes optional Kafka captions. It is intentionally a minimal compatibility layer:
