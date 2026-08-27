@@ -205,6 +205,12 @@ VSTの公開ドキュメントが手元にない場合でも、リポジトリ�
 
 この形式は実動画でHTTP 200を確認済みであり、UIの単一チャンク実装と複数チャンク実装の双方に一致する。VSTの正式な外部仕様書が入手できた場合は、ヘッダー名・番号規則・応答フィールドを照合し、差分があればUI実装を優先せず修正する。
 
+## 9.3 リアルタイムRTSPの未実装境界
+
+Agentには`POST /api/v1/rtsp-streams/add`があり、VSTで得たRTSP URLを`POST /v1/streams/add`の`liveStreamUrl`としてRTVI-VLMへ登録する契約がある。しかしOpenAI版RT-VLMは現在、`/v1/files`で保存した動画を処理する実装であり、`/v1/streams/add`、RTSP再接続、継続チャンク生成は未実装である。
+
+OpenAIでリアルタイム経路を成立させるには、RTSPをFFmpeg/GStreamerで一定時間のローカルチャンクへ切り出し、既存のフレーム抽出・OpenAI推論・Kafka発行をバックグラウンドで繰り返すストリームワーカーを追加する必要がある。`/v1/streams/add`はワーカー開始、`/v1/streams/delete/{id}`は停止、`/v1/generate_captions/{id}`は停止または状態変更として実装する。実カメラがないため、まずは同じ`konro_inspection.mp4`をRTSP配信するテストソースで、登録→数チャンク→Kafka/Elasticsearch→停止を検証する。
+
 ## 10. 今後の計画
 
 ### 2026-08-26 実施済みのフェーズA準備
