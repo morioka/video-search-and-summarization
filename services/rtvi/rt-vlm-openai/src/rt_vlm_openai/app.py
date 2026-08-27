@@ -165,7 +165,11 @@ def create_app(
             semaphore=request_semaphore,
             chunk_seconds=runtime_settings.default_chunk_duration,
             frames=runtime_settings.default_frames_per_chunk,
-            alert_sink=AlertSink(runtime_settings.alert_endpoint, runtime_settings.alert_keywords),
+            alert_sink=AlertSink(
+                runtime_settings.alert_endpoint,
+                runtime_settings.alert_keywords,
+                runtime_settings.alert_cooldown_seconds,
+            ),
         )
         try:
             yield

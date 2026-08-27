@@ -35,6 +35,7 @@ class Settings:
     kafka_topic: str = "mdx-vlm-captions"
     alert_endpoint: str = ""
     alert_keywords: str = ""
+    alert_cooldown_seconds: float = 30.0
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -57,6 +58,7 @@ class Settings:
             kafka_topic=os.getenv("RTVI_OPENAI_KAFKA_TOPIC", "mdx-vlm-captions").strip(),
             alert_endpoint=os.getenv("RTVI_OPENAI_ALERT_ENDPOINT", "").strip(),
             alert_keywords=os.getenv("RTVI_OPENAI_ALERT_KEYWORDS", "").strip(),
+            alert_cooldown_seconds=max(0.0, float(os.getenv("RTVI_OPENAI_ALERT_COOLDOWN_SECONDS", "30"))),
         )
 
     def validate(self) -> None:
