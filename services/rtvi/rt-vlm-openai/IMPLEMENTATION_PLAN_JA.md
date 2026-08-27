@@ -330,3 +330,9 @@ uv run --extra dev python scripts/e2e.py \
 - 修正後、Agent API に対して `lvs_caption_retrieval` を明示した問い合わせを実行し、Agent が `es_caption` backend 経由で Elasticsearch の 1 件を取得した。取得内容には、青い炎 `[3.733s]`、電池収納部の開閉 `[11.733s-15.233s]`、コンロを消してから電池収納部を開ける安全上の記述が含まれていた。
 - これにより、`OpenAI RT-VLM -> Kafka (nv.VisionLLM) -> Logstash -> Elasticsearch -> Agent/lvs_caption_retrieval (es_caption)` の検索経路が実データで確認できた。
 - VST sensor は Redis (`127.0.0.1:6379`) への接続失敗を警告しているが、ストリーム一覧 API と今回の検索経路には影響しなかった。`vss-vios-streamprocessing` はイメージ起動時の dpkg/gstreamer パッケージ不整合が残っており、別途課題とする。
+
+### 保存動画の自動接続（実装開始）
+
+- `/api/v1/videos/{sensor_id}/complete` に `RTVI_VLM_BASE_URL` の設定を追加した。
+- 完了 API が VST の生成済み動画 URL を取得し、RT-VLM の `/v1/files` へ同じ sensor UUID でアップロードした後、`/v1/generate_captions` を呼び出す処理を追加した。RT-VLM が発行する Kafka protobuf の UUID と VST sensor UUID を一致させる設計である。
+- まだ実コンテナで `/complete` からの自動実行は未検証。次は Agent イメージを再ビルドし、動画登録から Elasticsearch 登録までを実行する。
