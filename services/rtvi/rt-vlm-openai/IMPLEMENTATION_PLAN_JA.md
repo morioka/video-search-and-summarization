@@ -214,6 +214,10 @@ Agentには`POST /api/v1/rtsp-streams/add`があり、VSTで得たRTSP URLを`PO
 
 OpenAI版ではRTSPをFFmpegで一定時間のローカルチャンクへ切り出し、既存のフレーム抽出・OpenAI推論・Kafka発行をバックグラウンドで繰り返す。`/v1/streams/add`、一覧、`/v1/streams/delete/{id}`を実装し、`konro_inspection.mp4`の`file://`疑似入力で複数チャンク生成と停止を確認した。固定2秒リトライ、音声、完全なNVIDIA互換、`/v1/generate_captions/{id}`停止APIは今後の課題である。
 
+## 9.4 アラート発報の契約境界
+
+Alertサービスの設定では、Incident protobufの入力トピックは`alert-bridge-incidents`、VLM検証結果の保存トピック／インデックスは`mdx-vlm-incidents`、message typeは`Incident`である。RT-VLMが現在発行する`VisionLLM`キャプションprotobufとは別スキーマであり、キャプション中の危険語を単純にIncidentへ変換してはいけない。次段階では、`services/alert`の`convert_incident_to_protobuf_incident`と既存sinkの必須フィールドを参照し、明示的なアラートルールまたはAlert側の検証経路を通してから発報する。
+
 ## 10. 今後の計画
 
 ### 2026-08-26 実施済みのフェーズA準備
