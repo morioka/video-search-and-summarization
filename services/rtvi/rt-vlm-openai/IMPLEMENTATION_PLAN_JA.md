@@ -408,3 +408,4 @@ uv run --extra dev python scripts/e2e.py \
 - [x] ローカルAlertイメージをAlert付属Composeへoverrideして起動した。Redisを同時起動し、`GET /health` がHTTP 200、`POST /api/v1/incidents` がHTTP 202（Kafka producer初期化・ワーカー処理開始）を返すことを確認した。VLMバックエンド未接続でも受理経路は動作する。
 - [x] ローカルoverrideへ`VLM_WARMUP_ENABLED`と`FASTAPI_PORT`の環境変数を追加した。NIMを使わない検証では`VLM_WARMUP_ENABLED=false`をコンテナ内へ確実に渡し、不要な起動待ちを防ぐ。
 - [x] AlertのオンデマンドVLM検証をRTVIへ接続するため、RTVIへ`POST /v1/chat/completions`互換層を追加した。Alertの`video_url`を一時ファイルへ取得し、既存のフレーム抽出・OpenAI backendでcaptionを生成してChat Completions形式へ変換する。実動画でRTVI HTTP 200、Alert側`VLM response received`（約9.7秒）を確認した。`localhost`はRTVIブリッジコンテナ自身を指すため、コンテナから到達可能なホストアドレス（例: `172.17.0.1`）を使用する必要がある。
+- [x] 上記オンデマンド検証の結果がElasticsearch `mdx-vlm-incidents-2026-08-27`へ保存されることを確認した。成功文書には`verificationResponseCode=200`、`verificationResponseStatus=OK`、`info.reasoning`、Incident ID/sensor/placeが含まれ、失敗試行も`verdict=verification-failed`として記録された。既存Alertの永続化契約と接続できている。
