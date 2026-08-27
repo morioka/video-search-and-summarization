@@ -218,6 +218,8 @@ OpenAI版ではRTSPをFFmpegで一定時間のローカルチャンクへ切り�
 
 Alertサービスの設定では、Incident protobufの入力トピックは`alert-bridge-incidents`、VLM検証結果の保存トピック／インデックスは`mdx-vlm-incidents`、message typeは`Incident`である。RT-VLMが現在発行する`VisionLLM`キャプションprotobufとは別スキーマであり、キャプション中の危険語を単純にIncidentへ変換してはいけない。次段階では、`services/alert`の`convert_incident_to_protobuf_incident`と既存sinkの必須フィールドを参照し、明示的なアラートルールまたはAlert側の検証経路を通してから発報する。
 
+既存のサンプル変換では、少なくとも`timestamp`、`end`、`sensorId`、`objectIds`、`isAnomaly`、`category`、`place`がIncident本体に設定され、VLM説明などは`info` mapへ文字列として格納される。RT-VLM側にこのprotobuf依存を直接追加するのではなく、まずAlert側の`vlm_enhanced_sink`またはHTTP投入経路を再利用する方針とする。
+
 ## 10. 今後の計画
 
 ### 2026-08-26 実施済みのフェーズA準備
