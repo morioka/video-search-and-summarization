@@ -355,6 +355,7 @@ uv run --extra dev python scripts/e2e.py \
 - UIと同じnvstreamerチャンク形式で`konro_inspection.mp4`をVSTへ登録し、Agentの`/complete`、OpenAI版RT-VLMキャプション生成、Kafka/Elasticsearch登録までHTTP 200で確認した。
 - VST失敗の原因は、streamprocessingの保存先bind mount所有権（UID 1000で書けない）と、イメージ内のlibav/GStreamer依存欠損だった。起動スクリプトとCompose環境変数へ恒久化修正を反映済み。
 - 次回は、コンテナを起動する前に`VST_INSTALL_ADDITIONAL_PACKAGES=true`、保存先volumeの所有者、streamprocessingの`LD_LIBRARY_PATH`/`GST_PLUGIN_PATH`を確認する。起動後はVSTチャンクuploadを1回、Agent `/complete`を1回だけ検証すればよい。
+- 2026-08-27再開時は、streamprocessingのHTTP待受前に一時的な503が発生したが、コンテナ再起動後に復旧した。`konro_resume4.mp4`でVSTチャンクHTTP 200、Agent `/complete` HTTP 200、RT-VLMキャプション生成を再確認した。
 - 品質評価（代表動画10件、フレーム数・チャンク長比較）は後回し。要約経路は設定済みだが、実測は未実施。
 - フォーク: `codex/openai-rt-vlm`、最終同期コミットはこのメモ更新後のもの。
 - VST `vst-storage.json`の`video_path`をComposeのbind mount先`/home/vst/vst_release/streamer_videos/`へ修正した。初期失敗はVSTバイナリのAPI形式ではなく、streamprocessingイメージ内のlibav/GStreamer依存欠損とbind mount所有権不一致だった。イメージ再作成時にも依存インストールとUID 1000書き込み権限を維持する必要がある。
