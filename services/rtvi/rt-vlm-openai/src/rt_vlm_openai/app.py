@@ -221,11 +221,22 @@ def create_app(
     async def get_stream_info() -> dict[str, Any]:
         return {"results": await app.state.streams.list()}
 
+    @app.get("/v1/stream/get-stream-info")
+    async def get_stream_info_compat() -> dict[str, Any]:
+        streams = await app.state.streams.list()
+        return {"streams": streams, "stream_count": len(streams)}
+
     @app.delete("/v1/streams/delete/{stream_id}")
     async def delete_stream(stream_id: str) -> dict[str, Any]:
         if not await app.state.streams.remove(stream_id):
             raise HTTPException(status_code=404, detail=f"No such stream {stream_id}")
         return {"id": stream_id, "deleted": True}
+
+    @app.delete("/v1/streams/delete-batch")
+    async def delete_stream_batch(payload: Any = Body(...)) -> dict[str, Any]:
+        stream_ids = payload if isinstance(payload, list) else payload.get("stream_ids", payload.get("ids", []))
+        deleted = [str(stream_id) for stream_id in stream_ids if await app.state.streams.remove(str(stream_id))]
+        return {"deleted": deleted, "count": len(deleted)}
 
     @app.delete("/v1/generate_captions/{stream_id}")
     async def stop_stream_captions(stream_id: str) -> dict[str, Any]:

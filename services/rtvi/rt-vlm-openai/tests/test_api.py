@@ -197,6 +197,8 @@ async def test_nvidia_stream_alias_contract(tmp_path: Path) -> None:
         )
         assert added.status_code == 200
         assert added.json()["asset_id"] == "camera-compat"
+        listed = await client.get("/v1/stream/get-stream-info")
+        assert listed.json()["stream_count"] == 1
         stopped = await client.delete("/v1/generate_captions/camera-compat")
         assert stopped.json() == {"id": "camera-compat", "stopped": True}
 
