@@ -272,3 +272,26 @@ async def test_file_stream_worker_processes_real_chunk(tmp_path: Path) -> None:
     await registry.remove(stream_id)
     assert publisher.messages
     assert publisher.messages[0]["stream_id"] == "local-file"
+
+
+async def test_failed_stream_stays_registered_during_backoff(tmp_path: Path) -> None:
+    registry = StreamRegistry(
+        processor=VideoProcessor(),
+        backend=FakeBackend(),
+        publisher=FakePublisher(),
+        semaphore=asyncio.Semaphore(1),
+        chunk_seconds=1,
+        frames=2,
+    )
+    stream_id = await registry.add(
+        stream_id="disconnected-camera",
+        url="file:///does-not-exist.mp4",
+        description="test",
+        sensor_name="cam",
+    )
+    await asyncio.sleep(0.3)
+    listed = await registry.list()
+    assert listed[0]["id"] == stream_id
+    assert listed[0]["inference_active"] is True
+    await registry.remove(stream_id)
+    assert await registry.list() == []
