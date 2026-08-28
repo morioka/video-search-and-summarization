@@ -93,6 +93,7 @@ services:
 
       # Feature flags
       - DISABLE_CA_RAG=false
+      - LVS_RAG_BACKEND=${LVS_RAG_BACKEND:-ctx-rag}
       - ENABLE_AUDIO=${ENABLE_AUDIO:-false}
       - ENABLE_DENSE_CAPTION=false
       # The LVS HTTP API is sufficient for the developer profile. Keep MCP opt-in
