@@ -36,6 +36,14 @@ NVIDIA Video Search and Summarization（VSS）が参照するRT-VLMを、NVIDIA�
 
 ## 4. 実装した構成
 
+### CA-RAG依存の切り離し（最小スモーク経路）
+
+`services/video-summarization/src/simple_rag.py` に、`vss-ctx-rag` を import せずに
+既存の `ContextManager`/`RagAdapter` 呼び出し契約を満たすインメモリ実装を追加した。
+`LVS_RAG_BACKEND=simple` で選択でき、字幕を連結した `events`/`video_summary` 形式を返す。
+これは品質互換ではなく、NVIDIA依存を含まない保存動画の疎通確認用である。既定値は従来どおり
+`ctx-rag` とし、将来はElasticsearch検索とOpenAI互換LLMを使う汎用RAG実装へ置き換える。
+
 処理フローは次のとおり。
 
 1. `POST /v1/files`で動画を受信する。

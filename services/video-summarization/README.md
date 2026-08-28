@@ -147,6 +147,14 @@ summarization, and CA-RAG retrieval.
 > **Note:** Kafka and Logstash are *profile-gated* — they start only when the `kafka` Compose
 > profile is active.
 
+### License-free RAG smoke mode
+
+The default `LVS_RAG_BACKEND=ctx-rag` uses the upstream Context-Aware RAG package. For a
+license-free local smoke run, set `LVS_RAG_BACKEND=simple`. This mode keeps captions in
+memory and returns the same `events`/`video_summary` response shape, but it is not a
+semantic retrieval or high-quality summarization implementation. It is intended to verify
+the saved-video request path while the CA-RAG replacement is developed.
+
 ### Set environment variables
 
 Export the following environment variables or save them to a `.env` file in the repo root directory:
