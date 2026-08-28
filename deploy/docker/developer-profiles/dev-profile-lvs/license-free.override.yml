@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Optional override for the stored-video VSS path. It replaces the
+# NVIDIA-distributed application images with locally built images. Infrastructure
+# images (Kafka, Elasticsearch, Redis, PostgreSQL) remain unchanged.
+
+services:
+  lvs-server:
+    image: ${VSS_LVS_IMAGE:-vss-lvs-local:3.2.1}
+
+  vss-agent:
+    image: ${VSS_AGENT_IMAGE:-vss-agent-local:3.2.5}
+
+  vss-va-mcp:
+    image: ${VSS_AGENT_IMAGE:-vss-agent-local:3.2.5}
+
+  vss-ui:
+    image: ${VSS_UI_IMAGE:-vss-ui-local:3.2.0}
+
+  rtvi-vlm:
+    image: ${RTVI_VLM_IMAGE:-vss-rt-vlm:local}
+
+  nvstreamer-lvs:
+    image: ${NVSTREAMER_IMAGE:-vss-nvstreamer-local:3.2.1}

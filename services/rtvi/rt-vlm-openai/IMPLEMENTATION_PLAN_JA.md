@@ -369,6 +369,8 @@ uv run --extra dev python scripts/e2e.py \
 本作業の第一目的は、NVIDIAのライセンスが必要なコンテナイメージやモデルを使わず、VSSの主要経路を動作させることである。具体的には、保存動画登録、RT-VLMによるキャプション生成、Kafka/Elasticsearch登録、Agent検索・要約、Alert検証を対象とする。API認証、監査、安全性強化、推論品質評価、RTSP長時間運用、Embedding置換は、主要経路の代替動作を妨げない範囲で後回しにする。
 
 再実装の判断は、内部実装の完全再現ではなく、VSSから観測できる外部インターフェースと利用する機能仕様を基準に行う。必要なユースケースが限定的な場合は、機能を絞った互換サービスとアダプターで置き換え、未使用のNVIDIA固有機能まで再現しない。
+
+主要経路のイメージ棚卸しでは、RT-VLM、Agent、LVS、Alert、UI、VIOS/VSTにローカルビルド成果物がある一方、Composeのデフォルト値は一部が`nvcr.io`を指していることを確認した。保存動画の検索・要約・Alert経路ではRT-CV/DeepStream/RTVI-Embedは必須ではない。したがって次段階では、主要経路だけをローカルイメージへ固定するCompose overrideを追加し、デフォルト設定との混同を防ぐ。
 ## 2026-08-27: Agent から Elasticsearch 検索までの疎通確認
 
 - VST の `vst_video_list` が 502 になる問題は、`vss-vios-postgres` 停止後に sensor が再起動されていなかったことが原因だった。PostgreSQL 起動後に `vss-vios-sensor` を再起動し、`GET http://127.0.0.1:30888/vst/api/v1/sensor/streams` が 200 で `konro_inspection` を返すことを確認した。
