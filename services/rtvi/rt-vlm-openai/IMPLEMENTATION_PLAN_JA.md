@@ -435,3 +435,4 @@ uv run --extra dev python scripts/e2e.py \
 - 実動画`konro_inspection.mp4`をHTTP配信し、Alertのオンデマンド検証からOpenAI互換RT-VLM（`vss-rt-vlm:local`）へ接続した。`VLM response received (direct video)`（約4.7秒）とElasticsearch `mdx-vlm-incidents-2026-08-28`への保存を確認した。疑似URLではRT-VLMのffprobe失敗も`verification-failed`文書として保存され、失敗時の永続化契約も維持された。
 - Alertの`vlm.base_url`は現状環境変数ではなく`config.yaml`が優先されるため、NIMを使わない実行では設定ファイルをOpenAI互換URLへ切り替える必要がある。`rtvi_vlm.base_url`用の`RTVI_VLM_BASE_URL`とは別設定である。
 - Alertの設定ロードに`VLM_BASE_URL`、`VLM_MODEL`、`VLM_API_KEY`の環境変数上書きを追加した。NIM、ローカルvLLM/Ollama、OpenAI/Qwen等の外部OpenAI互換APIを同じイメージで切り替えられる。
+- LLM側は既に`LLM_MODEL_TYPE`、`LLM_BASE_URL`、`LLM_NAME`、`OPENAI_API_KEY`で独立切替できることを確認した。VLM側の`VLM_MODEL_TYPE`/`VLM_BASE_URL`と組み合わせ、LLMだけ外部、VLMだけローカルなどの構成を選べる。READMEにも構成表を追加した。

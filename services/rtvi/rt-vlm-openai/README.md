@@ -27,6 +27,22 @@ Optional alert bridge: set `RTVI_OPENAI_ALERT_ENDPOINT` to the Alert service bas
 `RTVI_OPENAI_ALERT_KEYWORDS` to a comma-separated keyword list. Only matching stream captions
 are posted to `/api/v1/incidents`; both variables are empty by default.
 
+## Backend selection
+
+VSS components use OpenAI-compatible HTTP interfaces, so inference can be
+placed locally or remotely without changing the pipeline. Select the Agent/LVS
+LLM independently from the RT-VLM VLM:
+
+| Component | Local NIM | Local vLLM/Ollama | Hosted API |
+|---|---|---|---|
+| LLM | `LLM_MODEL_TYPE=nim` | `LLM_MODEL_TYPE=openai` | `LLM_MODEL_TYPE=openai` |
+| VLM | `VLM_MODEL_TYPE=nim` | `VLM_MODEL_TYPE=openai` | `VLM_MODEL_TYPE=openai` |
+
+For the latter two modes set `LLM_BASE_URL`/`VLM_BASE_URL`, the model names
+(`LLM_NAME`/`VLM_NAME`), and `OPENAI_API_KEY`. Alert also accepts
+`VLM_BASE_URL`, `VLM_MODEL`, and `VLM_API_KEY` overrides. NIM is optional for
+the local replacement images.
+
 ## Run locally
 
 ```bash
