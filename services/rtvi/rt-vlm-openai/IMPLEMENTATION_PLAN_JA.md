@@ -434,3 +434,4 @@ uv run --extra dev python scripts/e2e.py \
 - 2026-08-28 Alert回帰確認: `vss-alert-bridge:local`を再ビルドし、Redisとともに起動して`GET /health` HTTP 200を確認した。`POST /api/v1/verification/ondemand`は入力不足時にHTTP 400、正常なIncidentではHTTP 202を返した。
 - 実動画`konro_inspection.mp4`をHTTP配信し、Alertのオンデマンド検証からOpenAI互換RT-VLM（`vss-rt-vlm:local`）へ接続した。`VLM response received (direct video)`（約4.7秒）とElasticsearch `mdx-vlm-incidents-2026-08-28`への保存を確認した。疑似URLではRT-VLMのffprobe失敗も`verification-failed`文書として保存され、失敗時の永続化契約も維持された。
 - Alertの`vlm.base_url`は現状環境変数ではなく`config.yaml`が優先されるため、NIMを使わない実行では設定ファイルをOpenAI互換URLへ切り替える必要がある。`rtvi_vlm.base_url`用の`RTVI_VLM_BASE_URL`とは別設定である。
+- Alertの設定ロードに`VLM_BASE_URL`、`VLM_MODEL`、`VLM_API_KEY`の環境変数上書きを追加した。NIM、ローカルvLLM/Ollama、OpenAI/Qwen等の外部OpenAI互換APIを同じイメージで切り替えられる。
