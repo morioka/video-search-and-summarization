@@ -436,3 +436,4 @@ uv run --extra dev python scripts/e2e.py \
 - Alertの`vlm.base_url`は現状環境変数ではなく`config.yaml`が優先されるため、NIMを使わない実行では設定ファイルをOpenAI互換URLへ切り替える必要がある。`rtvi_vlm.base_url`用の`RTVI_VLM_BASE_URL`とは別設定である。
 - Alertの設定ロードに`VLM_BASE_URL`、`VLM_MODEL`、`VLM_API_KEY`の環境変数上書きを追加した。NIM、ローカルvLLM/Ollama、OpenAI/Qwen等の外部OpenAI互換APIを同じイメージで切り替えられる。
 - LLM側は既に`LLM_MODEL_TYPE`、`LLM_BASE_URL`、`LLM_NAME`、`OPENAI_API_KEY`で独立切替できることを確認した。VLM側の`VLM_MODEL_TYPE`/`VLM_BASE_URL`と組み合わせ、LLMだけ外部、VLMだけローカルなどの構成を選べる。READMEにも構成表を追加した。
+- 将来のRTVI-Embed置換候補として、EmbeddingGemmaはテキスト専用の可能性があるため、Qwen3-VL-EmbeddingをvLLMのOpenAI互換APIで提供する案を記録する。性能評価より先に、画像・動画・テキストの同一埋め込み空間、ベクトル次元・正規化、モデルおよび派生物のライセンス条件を確認する。現行のキャプション全文検索経路は変更しない。
