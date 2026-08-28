@@ -23,3 +23,10 @@ def test_simple_rag_reset_and_drop_are_idempotent():
     rag.drop_collection()
     assert rag.call({"summarization": {}})["summarization"]["result"]
 
+
+def test_simple_rag_llm_is_opt_in(monkeypatch):
+    monkeypatch.delenv("LVS_SIMPLE_RAG_LLM", raising=False)
+    rag = SimpleRagAdapter()
+    rag.add_doc("caption", 0, {})
+    payload = json.loads(rag.call({"summarization": {}})["summarization"]["result"])
+    assert payload["video_summary"] == "caption"

@@ -154,6 +154,9 @@ license-free local smoke run, set `LVS_RAG_BACKEND=simple`. This mode keeps capt
 memory and returns the same `events`/`video_summary` response shape, but it is not a
 semantic retrieval or high-quality summarization implementation. It is intended to verify
 the saved-video request path while the CA-RAG replacement is developed.
+Set `LVS_SIMPLE_RAG_LLM=true` to delegate the aggregation to the configured
+OpenAI-compatible endpoint (`LVS_LLM_BASE_URL` and `LVS_LLM_MODEL_NAME`); a failed
+request falls back to deterministic caption concatenation.
 
 ### Set environment variables
 

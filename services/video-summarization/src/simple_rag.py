@@ -8,6 +8,9 @@ shape used by the LVS aggregation path, allowing the service to run without
 """
 
 import json
+import os
+import urllib.error
+import urllib.request
 from types import SimpleNamespace
 
 
@@ -20,6 +23,51 @@ class SimpleRagAdapter:
         self._uuid = None
         self._docs = {}
 
+    @staticmethod
+    def _llm_summary(text):
+        """Ask an OpenAI-compatible endpoint for a summary, if configured."""
+        if os.environ.get("LVS_SIMPLE_RAG_LLM", "false").lower() not in ("1", "true", "yes"):
+            return None
+        base_url = os.environ.get("LVS_LLM_BASE_URL", "").rstrip("/")
+        model = os.environ.get("LVS_LLM_MODEL_NAME", "")
+        if not base_url or not model or not text:
+            return None
+        payload = {
+            "model": model,
+            "temperature": 0.2,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": (
+                        "Summarize the video captions. Return JSON only with keys "
+                        "events (array) and video_summary (string)."
+                    ),
+                },
+                {"role": "user", "content": text},
+            ],
+        }
+        request = urllib.request.Request(
+            f"{base_url}/chat/completions",
+            data=json.dumps(payload).encode("utf-8"),
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {os.environ.get('OPENAI_API_KEY', '')}",
+            },
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=120) as response:
+                body = json.loads(response.read().decode("utf-8"))
+            content = body["choices"][0]["message"]["content"]
+            if isinstance(content, list):
+                content = "".join(part.get("text", "") for part in content)
+            parsed = json.loads(str(content).strip())
+            if isinstance(parsed, dict) and isinstance(parsed.get("video_summary"), str):
+                return parsed
+        except (OSError, ValueError, KeyError, IndexError, urllib.error.URLError):
+            return None
+        return None
+
     def configure(self, config):
         self._uuid = config.get("uuid") if isinstance(config, dict) else None
 
@@ -31,9 +79,8 @@ class SimpleRagAdapter:
     def call(self, config):
         if "summarization" in config:
             text = "\n".join(self._docs[index] for index in sorted(self._docs) if self._docs[index])
-            result = json.dumps(
-                {"events": [], "video_summary": text}, ensure_ascii=False
-            )
+            summary = self._llm_summary(text) or {"events": [], "video_summary": text}
+            result = json.dumps(summary, ensure_ascii=False)
             return {"summarization": {"result": result, "metadata": {}}}
         return {}
 
@@ -42,4 +89,3 @@ class SimpleRagAdapter:
 
     def drop_collection(self):
         self._docs.clear()
-

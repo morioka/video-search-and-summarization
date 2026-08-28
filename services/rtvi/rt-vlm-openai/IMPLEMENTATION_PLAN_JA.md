@@ -43,6 +43,8 @@ NVIDIA Video Search and Summarization（VSS）が参照するRT-VLMを、NVIDIA�
 `LVS_RAG_BACKEND=simple` で選択でき、字幕を連結した `events`/`video_summary` 形式を返す。
 これは品質互換ではなく、NVIDIA依存を含まない保存動画の疎通確認用である。既定値は従来どおり
 `ctx-rag` とし、将来はElasticsearch検索とOpenAI互換LLMを使う汎用RAG実装へ置き換える。
+なお、`LVS_SIMPLE_RAG_LLM=true` を指定すると、現時点でもOpenAI互換
+`/chat/completions` へ集約を委譲でき、失敗時は連結結果へフォールバックする。
 
 処理フローは次のとおり。
 
