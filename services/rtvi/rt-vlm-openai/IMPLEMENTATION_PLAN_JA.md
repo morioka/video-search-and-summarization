@@ -375,6 +375,8 @@ uv run --extra dev python scripts/e2e.py \
 なお、ローカルタグはライセンス非依存を意味しない。`vss-lvs-local`、`vss-agent-local`、`vss-ui-local`はNVIDIA distroless/baseをベースにしたローカルビルドであり、`vss-nvstreamer-local`はDeepStream/CUDAプリビルドを内包する。NVIDIAライセンス不要化を完了と判定するには、各Dockerfileの`FROM`と実行時バイナリを個別に監査し、汎用ベースへ置換できるサービスと、機能限定の再実装が必要なサービスを分ける。
 
 LVSの`vss-ctx-rag`本体は公開リポジトリのLICENSEでApache-2.0（GraphRAG由来の一部もApache-2.0）であり、ソース利用・改変・再配布は同ライセンス条件で可能である。ただし現行LVS DockerfileはNVIDIA Ubuntu/distrolessをベースにし、NVIDIA PyPIの追加インデックスと既定のNVIDIA埋め込みモデルを利用するため、LVS全体をライセンス非依存にするには、汎用ベース・取得元・モデルを別途置き換える必要がある。
+
+release/3.0.1の依存定義には`langchain-nvidia-ai-endpoints`と`nvidia-rag`も含まれる。`nvidia-rag`自体はPyPI上でApache-2.0表記だが、同パッケージのモデル・サンプルデータにはNVIDIA Community Model License/Asset License等の別条件があるため、コード利用とモデル利用を分離して監査する。今回の主要経路では、既存のElasticsearchキャプション検索に不要なモデル・データを取得しない構成を優先する。
 ## 2026-08-27: Agent から Elasticsearch 検索までの疎通確認
 
 - VST の `vst_video_list` が 502 になる問題は、`vss-vios-postgres` 停止後に sensor が再起動されていなかったことが原因だった。PostgreSQL 起動後に `vss-vios-sensor` を再起動し、`GET http://127.0.0.1:30888/vst/api/v1/sensor/streams` が 200 で `konro_inspection` を返すことを確認した。
