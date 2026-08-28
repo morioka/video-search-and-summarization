@@ -52,6 +52,12 @@ NVIDIA Video Search and Summarization（VSS）が参照するRT-VLMを、NVIDIA�
 Apache-2.0表記だけでなく、当該リリースと推移依存の配布条件を確認する必要がある。
 `nv-ingest` 等はextra依存であり、保存動画のsimple経路では読み込まない。
 
+CA-RAG有効状態での実環境確認では、Context Manager起動、OpenAI互換モデル認識、
+Elasticsearchの`raw_events`取得、`/v1/stream_summarize`のHTTP 200までは成功した。
+一方、`summarization_online`は空の`events`/`video_summary`を返したため、次回は
+LLM呼び出し入力と関数の期待する文書形式を調査する。これはライセンス問題とは分離した
+機能互換性の課題である。
+
 処理フローは次のとおり。
 
 1. `POST /v1/files`で動画を受信する。
