@@ -46,6 +46,12 @@ NVIDIA Video Search and Summarization（VSS）が参照するRT-VLMを、NVIDIA�
 なお、`LVS_SIMPLE_RAG_LLM=true` を指定すると、現時点でもOpenAI互換
 `/chat/completions` へ集約を委譲でき、失敗時は連結結果へフォールバックする。
 
+`vss-ctx-rag` は既定で有効に戻す方針とする。現行イメージの `nvidia-rag==2.5.0`
+はパッケージメタデータのLicense欄が空で、必須依存に
+`langchain-nvidia-ai-endpoints` とMilvus系が含まれる。従って、コード本体の
+Apache-2.0表記だけでなく、当該リリースと推移依存の配布条件を確認する必要がある。
+`nv-ingest` 等はextra依存であり、保存動画のsimple経路では読み込まない。
+
 処理フローは次のとおり。
 
 1. `POST /v1/files`で動画を受信する。
