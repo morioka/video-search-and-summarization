@@ -92,7 +92,8 @@ class SimpleRagAdapter:
                 meta = source.get("metadata", {}).get("content_metadata", {})
                 if meta.get("doc_type", "raw_events") != "raw_events":
                     continue
-                rows.append((int(meta.get("doc_i", 0)), str(source.get("text", ""))))
+                order = meta.get("doc_i", meta.get("chunkIdx", 0))
+                rows.append((int(order), str(source.get("text", ""))))
             return [text for _, text in sorted(rows)]
         except (OSError, ValueError, TypeError, KeyError, urllib.error.URLError):
             return []
