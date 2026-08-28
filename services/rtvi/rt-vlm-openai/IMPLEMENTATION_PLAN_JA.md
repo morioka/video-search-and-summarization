@@ -248,6 +248,21 @@ AlertのHTTP入口は`POST /api/v1/incidents`で、JSONの場合は少なくと�
 
 ## 10. 今後の計画
 
+### 2026-08-28 終了時点の記録
+
+- `vss-ctx-rag` / `nvidia-rag` はコード面ではApache-2.0だが、モデル・データ・推移依存は別条件のため継続監査する。
+- CA-RAGは既定有効とし、LLM/EmbeddingのAPIキーを `LVS_LLM_API_KEY` / `LVS_EMB_API_KEY` から渡せるようにした。
+- `LVS_RAG_BACKEND=simple` はCA-RAGなしの保存動画スモーク経路として実装済み。Elasticsearch raw_eventsとOpenAI互換LLMに対応する。
+- CA-RAGはContext Manager起動、ES文書取得、API HTTP 200まで確認済み。構造化イベントを解析できない空結果へのraw captionフォールバックを追加した。
+- `vss-lvs-local:3.2.4` をビルド済み。次回はこのタグで再起動し、フォールバックを実E2E確認する。
+- 現行イメージは依然としてNVIDIAベース。最終目標であるNVIDIA依存なし構成では、汎用Pythonベースへの移行が残る。
+
+#### 次回の開始手順
+
+1. `VSS_LVS_IMAGE=vss-lvs-local:3.2.4`、`LVS_RAG_BACKEND=ctx-rag` でLVSを起動する。
+2. 保存済みUUIDまたは `Videos/konro_inspection.mp4` で集約結果を確認する。
+3. 結果確認後、NVIDIAベースを使わないLVS Dockerfileの検討へ進む。
+
 ### 2026-08-26 実施済みのフェーズA準備
 
 - [x] Agent、LVS、UIのローカルイメージをビルドした。
