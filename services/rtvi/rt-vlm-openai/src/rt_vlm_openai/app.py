@@ -14,8 +14,9 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Protocol
+from urllib.request import Request as UrlRequest
+from urllib.request import urlopen
 from uuid import UUID, uuid4
-from urllib.request import Request as UrlRequest, urlopen
 
 from fastapi import Body, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
@@ -354,7 +355,13 @@ def create_app(
                 "object": "chat.completion",
                 "created": int(time.time()),
                 "model": request.model,
-                "choices": [{"index": 0, "message": {"role": "assistant", "content": result.content}, "finish_reason": "stop"}],
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": result.content},
+                        "finish_reason": "stop",
+                    }
+                ],
             }
         except HTTPException:
             raise

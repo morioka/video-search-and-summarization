@@ -415,3 +415,15 @@ uv run --extra dev python scripts/e2e.py \
 - 2026-08-28再開: RTSP/fileストリームワーカーの失敗リトライを固定2秒から指数バックオフ（2→4→8…最大30秒）へ変更し、成功時に2秒へリセットするようにした。実動画を含むRTVIテストは14件すべて成功。長時間RTSPの実測は未完了。
 - 切断相当（存在しないfile URL）でもストリームが登録状態を維持し、`inference_active=true`のまま再試行し、削除APIで停止できるテストを追加した。RTVIテストは15件すべて成功。実RTSP長時間試験は引き続き未実施。
 - MediaMTX + FFmpegで疑似RTSPを起動し、コンテナからのRTSP接続自体は確認した。一方、接続直後の短い切り出しでは終了コード0でも空MP4になる事象を再現したため、RTSPの切り出し最低時間を10秒、`analyzeduration`/`probesize`を10Mへ変更した。修正後の実推論成功確認は次回へ持ち越す。
+- 2026-08-28方針変更: RTSPの実推論・長時間安定性検証は後回しとする。現在の主経路（保存動画のVST登録 -> OpenAI版RT-VLM -> Kafka/Elasticsearch -> Agent検索、およびAlertオンデマンド検証）は確認済みであり、次の作業はこの経路の残課題を優先する。RTSP修正（最低10秒切り出し、`analyzeduration`/`probesize`、指数バックオフ）は保持し、後日まとめて再検証する。
+- 2026-08-28回帰確認: OpenAI版RT-VLMの手書きコードのruff警告（Chat互換層のimport・長行）を修正し、生成protobufをruff対象外に設定した。`ruff check .` とpytest 15件が成功した。RTSPの実行検証は行っていない。
+- 同日、`vss-rt-vlm:local` のDockerイメージを再ビルドし、依存解決を含むフルビルドが成功した。RTSPコンテナは起動せず、保存動画・Alert経路で利用可能なイメージ成果物のみ更新した。
+- 要約E2Eの準備としてRT-VLM単体のready応答を確認したが、稼働中のLVSコンテナは`generate_summary=false`かつ別ホストIPのRTVI URLを使用していたため、既存基盤を再構成せず保留した。単体RT-VLMコンテナは停止済み。次回はLVS再作成時に要約設定とRTVI URLを同時に切り替えて一度だけ実測する。
+- LVS Composeに`LVS_CAPTION_GENERATE_SUMMARY`（既定false）と`LVS_CAPTION_SUMMARY_MODEL`の環境変数渡しを追加した。YAML構文は確認済み。サービス単体のCompose検証は、親Composeで定義されるNIM依存サービスが不足するため`config --quiet`まで完走しなかった。要約E2Eは開発プロファイル全体を再作成できるタイミングで実施する。
+- READMEを現実の実装に合わせて更新した。Alert向け`/v1/chat/completions`互換層が提供済みであること、LLM/VLMを個別にOpenAI互換エンドポイントへ切り替える設定、要約フラグの既定値を明記した。
+- 要約E2E準備を実施。既存のローカルLVSイメージを`--no-deps --force-recreate`で再作成し、`LVS_CAPTION_GENERATE_SUMMARY=true`、`LVS_CAPTION_SUMMARY_MODEL=openai_llm`、RTVI URL反映を確認した。RT-VLMはhost networkの8018番でready、LVSの接続成功まで確認した。ただし稼働中にAgentコンテナが存在せず、`lvs_caption_retrieval`からの要約呼び出しは実測できなかった。検証後はRT-VLM停止、LVSを`generate_summary=false`へ復元した。
+- Agentを一時的に8001番で起動して要約E2Eを再試行した。Agent起動・health・`/v1/chat`応答は成功したが、VST/NVStreamerが停止中でストリーム一覧APIが502となり、`konro_resume4`のコレクション名をElasticsearchインデックスへ解決できなかったため、`lvs_caption_retrieval`は空結果になった。要約ロジックの失敗ではなく、VST登録済みストリーム解決の前提不足である。検証用Agentは停止済み。
+- VST内部URLの原因を切り分け、NVStreamerは31000番で直接待受し、Agentが30888番の旧Nginx経路を参照していたことを確認した。`VST_INTERNAL_URL`を`${HOST_IP}:${NVSTREAMER_HTTP_PORT}`へ変更し、AgentコンテナからVST APIがHTTP 200（空一覧）になることを確認した。既存の保存済みストリームメタデータがないため要約E2Eは未完了。検証用Agent/NVStreamerは停止済み。
+- 起動順序の手動ミスを防ぐため、`scripts/preflight.py`を追加した。VST（31000番）→RT-VLM ready→LVS ready→任意Agent healthの順で検査し、`--require-stream`指定時はVST一覧に対象名がなければ終了する。Python構文とヘルプ表示を確認済み。
+- preflightのユニットテストを追加し、正常系・対象ストリーム欠落・サービス接続失敗を検証した。RT-VLMテストは18件成功、ruffも成功した。
+- 動画再登録を試行し、NVStreamerへの単一チャンクuploadはHTTP 200で`sensorId`を取得できた。しかしローカルNVStreamer単体構成では`/vst/api/v1/storage/timelines`と`/vst/api/v1/storage/file/{sensor}/url`が404となり、Agentの`/complete`はタイムライン取得で502になった。起動順序の問題ではなく、storage adaptor/streamprocessingを含むVST構成が必要な制約である。推測でAgentに代替タイムラインを実装せず、正式VST構成または既存検証データを使う方針とする。検証用コンテナは停止済み。

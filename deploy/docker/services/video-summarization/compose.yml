@@ -84,6 +84,10 @@ services:
       - KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS:-kafka:9092}
       - KAFKA_STRUCTURED_SUMMARY_TOPIC=${KAFKA_STRUCTURED_SUMMARY_TOPIC:-mdx-structured-events-summary}
 
+      # Caption retrieval summary generation (disabled by default)
+      - LVS_CAPTION_GENERATE_SUMMARY=${LVS_CAPTION_GENERATE_SUMMARY:-false}
+      - LVS_CAPTION_SUMMARY_MODEL=${LVS_CAPTION_SUMMARY_MODEL:-${LLM_MODEL_TYPE:-nim}_llm}
+
       # LLM-based merging of overlapping/duplicate events in the structured summary
       - LVS_ENABLE_LLM_MERGING=${LVS_ENABLE_LLM_MERGING:-false}
 

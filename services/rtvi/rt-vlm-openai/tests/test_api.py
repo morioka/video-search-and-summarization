@@ -9,8 +9,8 @@ from pathlib import Path
 import httpx
 from openai import APIConnectionError
 
-from rt_vlm_openai.app import create_app
 import rt_vlm_openai.app as app_module
+from rt_vlm_openai.app import create_app
 from rt_vlm_openai.config import Settings
 from rt_vlm_openai.models import GenerateCaptionsRequest, OpenAIResult
 from rt_vlm_openai.streams import StreamRegistry
@@ -195,7 +195,10 @@ async def test_chat_completions_video_url_bridge(tmp_path: Path, monkeypatch) ->
     backend = FakeBackend()
     app = create_app(settings(tmp_path), backend=backend, video_processor=FakeVideoProcessor())
     transport = httpx.ASGITransport(app=app)
-    async with app.router.lifespan_context(app), httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(transport=transport, base_url="http://test") as client,
+    ):
         response = await client.post(
             "/v1/chat/completions",
             json={

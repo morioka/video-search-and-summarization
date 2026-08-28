@@ -13,14 +13,15 @@ Supported endpoints:
 - `GET /v1/models`
 - `POST /v1/files`, `GET /v1/files`, and `DELETE /v1/files/{id}`
 - `POST /v1/generate_captions`
+- `POST /v1/chat/completions` (Alert/OpenAI Chat互換。`video_url`を受け取り、同じフレーム抽出・VLM推論を実行)
 - `POST /v1/streams/add`, `GET /v1/streams/get-stream-info`, and `DELETE /v1/streams/delete/{id}` (best-effort RTSP/file worker)
 - NVIDIA client compatibility aliases: `POST /v1/stream/add`, `POST /v1/stream/remove`, `GET /v1/stream/get-stream-info`,
   `DELETE /v1/generate_captions/{id}`, and `DELETE /v1/streams/delete-batch`
 
 The stream worker captures short FFmpeg chunks from RTSP (or `file://` test sources), sends them through the same
 OpenAI multimodal path, and publishes optional Kafka captions. It is intentionally a minimal compatibility layer:
-reconnection policy, audio, URL asset ingestion, embeddings, and the OpenAI-compatible `/v1/chat/completions` facade
-remain outside this service.
+reconnection policy, audio, URL asset ingestion, and embeddings remain outside this service. The Chat Completions
+facade is provided for Alert interoperability and is limited to one `video_url` per request.
 
 Optional alert bridge: set `RTVI_OPENAI_ALERT_ENDPOINT` to the Alert service base URL and
 `RTVI_OPENAI_ALERT_KEYWORDS` to a comma-separated keyword list. Only matching stream captions
@@ -37,7 +38,27 @@ uv run --extra dev uvicorn rt_vlm_openai.app:app --host 0.0.0.0 --port 8018
 
 For a non-OpenAI provider exposing the same API, also set `VIA_VLM_ENDPOINT` and optionally `VIA_VLM_API_KEY`.
 
+VSSのLLMとVLMは独立して切り替えられます。例えば、VLMだけOpenAI互換サーバーへ向ける場合は
+`VLM_MODEL_TYPE=openai`、`VLM_BASE_URL=https://<server>`（`/v1`はCompose側で付与）、`VLM_NAME=<model>`を設定し、
+LLM側は`LLM_MODEL_TYPE`、`LLM_BASE_URL`、`LLM_NAME`で指定します。OpenAI本体を使う場合は
+`OPENAI_API_KEY`を共用できます。保存動画の要約を有効にする場合だけ
+`LVS_CAPTION_GENERATE_SUMMARY=true`を設定します（既定値は`false`）。
+
 ## End-to-end check
+
+Before an E2E run, check the startup prerequisites in order. The default ports use
+the direct NVStreamer endpoint (31000), not the legacy VST ingress port (30888):
+
+```bash
+uv run python scripts/preflight.py \
+  --vst http://127.0.0.1:31000 \
+  --rtvi http://127.0.0.1:8018 \
+  --lvs http://127.0.0.1:38111 \
+  --require-stream konro_resume4
+```
+
+Use `--agent http://127.0.0.1:8001` when the Agent is moved off port 8000 because
+VST occupies that port. Do not proceed to Agent search if the VST inventory is empty.
 
 Start the service with a real OpenAI API key and an image-capable model, then run the client against a local video:
 
