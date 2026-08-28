@@ -77,10 +77,11 @@ async def get_name_to_stream_id_map(vst_internal_url: str | None = None) -> dict
             with retry:
                 try:
                     async with session.get(url) as response:
-                        if response.status != 200:
-                            raise RuntimeError(f"VST streams API returned status {response.status}")
-                        text = await response.text()
-                        payload = json.loads(text)
+                        if response.status == 200:
+                            text = await response.text()
+                            payload = json.loads(text)
+                        else:
+                            payload = []
                         mapping: dict[str, str] = {}
                         for file in payload:
                             stream_id = next(iter(file))
@@ -92,6 +93,21 @@ async def get_name_to_stream_id_map(vst_internal_url: str | None = None) -> dict
                                 mapping.setdefault(name, stream_id)
                             else:
                                 logger.warning(f"Stream ID {stream_id} is empty, skipping")
+                        if mapping:
+                            return mapping
+                        # Some VST deployments expose storage timelines through
+                        # streamprocessing while the NVStreamer inventory is
+                        # temporarily empty. Preserve UUID-based lookups so
+                        # existing Elasticsearch collections remain usable.
+                        async with session.get(
+                            f"{vst_internal_url.rstrip('/')}/vst/api/v1/storage/timelines"
+                        ) as timeline_response:
+                            if timeline_response.status == 200:
+                                timeline_payload = json.loads(await timeline_response.text())
+                                if isinstance(timeline_payload, dict):
+                                    return {str(stream_id): str(stream_id) for stream_id in timeline_payload}
+                        if response.status != 200:
+                            raise RuntimeError(f"VST streams API returned status {response.status}")
                         return mapping
                 except Exception as e:
                     logger.error(f"Error getting name to stream ID map: {e}")

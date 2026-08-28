@@ -426,4 +426,5 @@ uv run --extra dev python scripts/e2e.py \
 - VST内部URLの原因を切り分け、NVStreamerは31000番で直接待受し、Agentが30888番の旧Nginx経路を参照していたことを確認した。`VST_INTERNAL_URL`を`${HOST_IP}:${NVSTREAMER_HTTP_PORT}`へ変更し、AgentコンテナからVST APIがHTTP 200（空一覧）になることを確認した。既存の保存済みストリームメタデータがないため要約E2Eは未完了。検証用Agent/NVStreamerは停止済み。
 - 起動順序の手動ミスを防ぐため、`scripts/preflight.py`を追加した。VST（31000番）→RT-VLM ready→LVS ready→任意Agent healthの順で検査し、`--require-stream`指定時はVST一覧に対象名がなければ終了する。Python構文とヘルプ表示を確認済み。
 - preflightのユニットテストを追加し、正常系・対象ストリーム欠落・サービス接続失敗を検証した。RT-VLMテストは18件成功、ruffも成功した。
+- preflightに`--check-timeline-api`を追加した。保存動画の`/complete`に必須の`/vst/api/v1/storage/timelines`が404の場合、Agent検索へ進む前に検出できる。フォークへ`c785e04c9`として同期済み。
 - 動画再登録を試行し、NVStreamerへの単一チャンクuploadはHTTP 200で`sensorId`を取得できた。しかしローカルNVStreamer単体構成では`/vst/api/v1/storage/timelines`と`/vst/api/v1/storage/file/{sensor}/url`が404となり、Agentの`/complete`はタイムライン取得で502になった。起動順序の問題ではなく、storage adaptor/streamprocessingを含むVST構成が必要な制約である。推測でAgentに代替タイムラインを実装せず、正式VST構成または既存検証データを使う方針とする。検証用コンテナは停止済み。
