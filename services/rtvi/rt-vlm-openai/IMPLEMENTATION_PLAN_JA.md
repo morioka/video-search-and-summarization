@@ -426,6 +426,7 @@ uv run --extra dev python scripts/e2e.py \
 - VST内部URLの原因を切り分け、NVStreamerは31000番で直接待受し、Agentが30888番の旧Nginx経路を参照していたことを確認した。`VST_INTERNAL_URL`を`${HOST_IP}:${NVSTREAMER_HTTP_PORT}`へ変更し、AgentコンテナからVST APIがHTTP 200（空一覧）になることを確認した。既存の保存済みストリームメタデータがないため要約E2Eは未完了。検証用Agent/NVStreamerは停止済み。
 - 正式VST構成ではstreamprocessingがタイムラインAPIを提供することを確認した。NVStreamer単体の一覧が空でも、`storage/timelines`のUUIDを自己対応として返すフォールバックをAgentのVSTユーティリティへ追加し、UUID指定の既存ESコレクション検索を可能にした。Agent依存テストはホストにCairo開発ライブラリがなく`pycairo`ビルドで停止したため、構文チェックまで確認済み。
 - AgentローカルオーバーレイDockerfileのCOPYパス誤り（`agent/src`）を`services/agent/src`へ修正し、`vss-agent-local:3.2.5`のビルドに成功した。これでUUIDフォールバックを含むAgentイメージを再現できる。
+- `vss-agent-local:3.2.5`を8001番で起動し、正式streamprocessingのタイムラインUUIDを使った`lvs_caption_retrieval`を実測した。VSTストリーム一覧が空でもUUIDフォールバックでElasticsearchから1件を取得し、`LVS_CAPTION_GENERATE_SUMMARY=true`時にはOpenAI `openai_llm`による`Summary:`付き応答（青い炎 1.467秒）まで成功した。検証後は要約フラグをfalseへ戻し、Agent/NVStreamerを停止した。
 - 起動順序の手動ミスを防ぐため、`scripts/preflight.py`を追加した。VST（31000番）→RT-VLM ready→LVS ready→任意Agent healthの順で検査し、`--require-stream`指定時はVST一覧に対象名がなければ終了する。Python構文とヘルプ表示を確認済み。
 - preflightのユニットテストを追加し、正常系・対象ストリーム欠落・サービス接続失敗を検証した。RT-VLMテストは18件成功、ruffも成功した。
 - preflightに`--check-timeline-api`を追加した。保存動画の`/complete`に必須の`/vst/api/v1/storage/timelines`が404の場合、Agent検索へ進む前に検出できる。フォークへ`c785e04c9`として同期済み。
