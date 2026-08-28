@@ -108,7 +108,12 @@ class StreamRegistry:
                     command = ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y"]
                     if url.startswith("rtsp://"):
                         command += ["-rtsp_transport", "tcp"]
-                    command += ["-i", url, "-t", str(self._chunk_seconds), "-an"]
+                    # Allow RTSP startup/keyframe latency; very short captures
+                    # can exit successfully while producing an empty MP4.
+                    capture_seconds = max(self._chunk_seconds, 10) if url.startswith("rtsp://") else self._chunk_seconds
+                    if url.startswith("rtsp://"):
+                        command += ["-analyzeduration", "10M", "-probesize", "10M"]
+                    command += ["-i", url, "-t", str(capture_seconds), "-an"]
                     command += ["-c:v", "libx264" if url.startswith("rtsp://") else "copy", str(path)]
                     process = multiprocessing.Process(target=_capture_chunk, args=(command,), daemon=True)
                     process.start()

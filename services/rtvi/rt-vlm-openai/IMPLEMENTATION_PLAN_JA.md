@@ -414,3 +414,4 @@ uv run --extra dev python scripts/e2e.py \
 - 2026-08-27終了時点: 保存動画検索、OpenAI版RT-VLM、AlertのChat互換VLM検証、Elasticsearch保存、Kafka再発行まで実動作を確認した。検証用の`alert-bridge`、`alert-bridge-redis`、ローカルRTVIコンテナは停止済み。次回はRTSP長時間安定性または元仕様のIncident検証経路から再開する。
 - 2026-08-28再開: RTSP/fileストリームワーカーの失敗リトライを固定2秒から指数バックオフ（2→4→8…最大30秒）へ変更し、成功時に2秒へリセットするようにした。実動画を含むRTVIテストは14件すべて成功。長時間RTSPの実測は未完了。
 - 切断相当（存在しないfile URL）でもストリームが登録状態を維持し、`inference_active=true`のまま再試行し、削除APIで停止できるテストを追加した。RTVIテストは15件すべて成功。実RTSP長時間試験は引き続き未実施。
+- MediaMTX + FFmpegで疑似RTSPを起動し、コンテナからのRTSP接続自体は確認した。一方、接続直後の短い切り出しでは終了コード0でも空MP4になる事象を再現したため、RTSPの切り出し最低時間を10秒、`analyzeduration`/`probesize`を10Mへ変更した。修正後の実推論成功確認は次回へ持ち越す。
