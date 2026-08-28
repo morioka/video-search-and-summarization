@@ -373,6 +373,8 @@ uv run --extra dev python scripts/e2e.py \
 主要経路のイメージ棚卸しでは、RT-VLM、Agent、LVS、Alert、UI、VIOS/VSTにローカルビルド成果物がある一方、Composeのデフォルト値は一部が`nvcr.io`を指していることを確認した。保存動画の検索・要約・Alert経路ではRT-CV/DeepStream/RTVI-Embedは必須ではない。したがって次段階では、主要経路だけをローカルイメージへ固定するCompose overrideを追加し、デフォルト設定との混同を防ぐ。
 
 なお、ローカルタグはライセンス非依存を意味しない。`vss-lvs-local`、`vss-agent-local`、`vss-ui-local`はNVIDIA distroless/baseをベースにしたローカルビルドであり、`vss-nvstreamer-local`はDeepStream/CUDAプリビルドを内包する。NVIDIAライセンス不要化を完了と判定するには、各Dockerfileの`FROM`と実行時バイナリを個別に監査し、汎用ベースへ置換できるサービスと、機能限定の再実装が必要なサービスを分ける。
+
+LVSの`vss-ctx-rag`本体は公開リポジトリのLICENSEでApache-2.0（GraphRAG由来の一部もApache-2.0）であり、ソース利用・改変・再配布は同ライセンス条件で可能である。ただし現行LVS DockerfileはNVIDIA Ubuntu/distrolessをベースにし、NVIDIA PyPIの追加インデックスと既定のNVIDIA埋め込みモデルを利用するため、LVS全体をライセンス非依存にするには、汎用ベース・取得元・モデルを別途置き換える必要がある。
 ## 2026-08-27: Agent から Elasticsearch 検索までの疎通確認
 
 - VST の `vst_video_list` が 502 になる問題は、`vss-vios-postgres` 停止後に sensor が再起動されていなかったことが原因だった。PostgreSQL 起動後に `vss-vios-sensor` を再起動し、`GET http://127.0.0.1:30888/vst/api/v1/sensor/streams` が 200 で `konro_inspection` を返すことを確認した。
