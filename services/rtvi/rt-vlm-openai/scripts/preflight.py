@@ -34,6 +34,11 @@ def main() -> int:
     parser.add_argument("--lvs", default="http://127.0.0.1:38111", help="LVS base URL")
     parser.add_argument("--agent", default="", help="Optional Agent base URL")
     parser.add_argument("--require-stream", help="Require this VST stream name in the stream list")
+    parser.add_argument(
+        "--check-timeline-api",
+        action="store_true",
+        help="Also require the VST storage timelines endpoint (needed by video completion)",
+    )
     parser.add_argument("--timeout", type=float, default=10.0)
     args = parser.parse_args()
 
@@ -52,6 +57,8 @@ def main() -> int:
         print(f"OK VST stream inventory: {len(names)} stream(s)")
         if args.require_stream and args.require_stream not in names:
             raise RuntimeError(f"required stream is missing: {args.require_stream!r}; available={sorted(names)}")
+        if args.check_timeline_api:
+            check("VST timelines", f"{args.vst.rstrip('/')}/vst/api/v1/storage/timelines", args.timeout)
         check("RT-VLM", f"{args.rtvi.rstrip('/')}/v1/health/ready", args.timeout)
         check("LVS", f"{args.lvs.rstrip('/')}/v1/ready", args.timeout)
         if args.agent:

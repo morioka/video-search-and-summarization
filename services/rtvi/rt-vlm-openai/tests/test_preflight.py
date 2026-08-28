@@ -18,6 +18,7 @@ def test_main_checks_services_and_required_stream(monkeypatch, capsys):
         "http://rtvi/v1/health/ready": {"status": "ready"},
         "http://lvs/v1/ready": {},
         "http://agent/health": {"value": {"isAlive": True}},
+        "http://vst/vst/api/v1/storage/timelines": {},
     }
     monkeypatch.setattr(preflight, "get_json", lambda url, timeout: responses[url])
     monkeypatch.setattr(
@@ -34,6 +35,7 @@ def test_main_checks_services_and_required_stream(monkeypatch, capsys):
             "http://agent",
             "--require-stream",
             "konro_resume4",
+            "--check-timeline-api",
         ],
     )
 

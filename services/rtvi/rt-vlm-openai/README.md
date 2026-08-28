@@ -54,11 +54,14 @@ uv run python scripts/preflight.py \
   --vst http://127.0.0.1:31000 \
   --rtvi http://127.0.0.1:8018 \
   --lvs http://127.0.0.1:38111 \
-  --require-stream konro_resume4
+  --require-stream konro_resume4 \
+  --check-timeline-api
 ```
 
 Use `--agent http://127.0.0.1:8001` when the Agent is moved off port 8000 because
 VST occupies that port. Do not proceed to Agent search if the VST inventory is empty.
+For stored-video completion, `--check-timeline-api` catches the common case where a
+standalone NVStreamer accepts uploads but does not expose the storage adaptor APIs.
 
 Start the service with a real OpenAI API key and an image-capable model, then run the client against a local video:
 
