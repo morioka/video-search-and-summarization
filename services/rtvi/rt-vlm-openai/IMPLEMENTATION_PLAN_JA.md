@@ -371,6 +371,8 @@ uv run --extra dev python scripts/e2e.py \
 再実装の判断は、内部実装の完全再現ではなく、VSSから観測できる外部インターフェースと利用する機能仕様を基準に行う。必要なユースケースが限定的な場合は、機能を絞った互換サービスとアダプターで置き換え、未使用のNVIDIA固有機能まで再現しない。
 
 主要経路のイメージ棚卸しでは、RT-VLM、Agent、LVS、Alert、UI、VIOS/VSTにローカルビルド成果物がある一方、Composeのデフォルト値は一部が`nvcr.io`を指していることを確認した。保存動画の検索・要約・Alert経路ではRT-CV/DeepStream/RTVI-Embedは必須ではない。したがって次段階では、主要経路だけをローカルイメージへ固定するCompose overrideを追加し、デフォルト設定との混同を防ぐ。
+
+なお、ローカルタグはライセンス非依存を意味しない。`vss-lvs-local`、`vss-agent-local`、`vss-ui-local`はNVIDIA distroless/baseをベースにしたローカルビルドであり、`vss-nvstreamer-local`はDeepStream/CUDAプリビルドを内包する。NVIDIAライセンス不要化を完了と判定するには、各Dockerfileの`FROM`と実行時バイナリを個別に監査し、汎用ベースへ置換できるサービスと、機能限定の再実装が必要なサービスを分ける。
 ## 2026-08-27: Agent から Elasticsearch 検索までの疎通確認
 
 - VST の `vst_video_list` が 502 になる問題は、`vss-vios-postgres` 停止後に sensor が再起動されていなかったことが原因だった。PostgreSQL 起動後に `vss-vios-sensor` を再起動し、`GET http://127.0.0.1:30888/vst/api/v1/sensor/streams` が 200 で `konro_inspection` を返すことを確認した。
