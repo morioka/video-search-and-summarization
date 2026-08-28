@@ -68,6 +68,35 @@ class SimpleRagAdapter:
             return None
         return None
 
+    @staticmethod
+    def _es_docs(uuid):
+        """Load raw caption documents from the per-asset Elasticsearch index."""
+        host = os.environ.get("ES_HOST", "")
+        port = os.environ.get("ES_PORT", "9200")
+        if not host or not uuid:
+            return []
+        index = "default_" + str(uuid).replace("-", "_")
+        query = {"size": 1000, "query": {"match": {"metadata.content_metadata.uuid": str(uuid)}}}
+        request = urllib.request.Request(
+            f"http://{host}:{port}/{index}/_search",
+            data=json.dumps(query).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=10) as response:
+                hits = json.loads(response.read().decode("utf-8")).get("hits", {}).get("hits", [])
+            rows = []
+            for hit in hits:
+                source = hit.get("_source", {})
+                meta = source.get("metadata", {}).get("content_metadata", {})
+                if meta.get("doc_type", "raw_events") != "raw_events":
+                    continue
+                rows.append((int(meta.get("doc_i", 0)), str(source.get("text", ""))))
+            return [text for _, text in sorted(rows)]
+        except (OSError, ValueError, TypeError, KeyError, urllib.error.URLError):
+            return []
+
     def configure(self, config):
         self._uuid = config.get("uuid") if isinstance(config, dict) else None
 
@@ -78,10 +107,16 @@ class SimpleRagAdapter:
 
     def call(self, config):
         if "summarization" in config:
-            text = "\n".join(self._docs[index] for index in sorted(self._docs) if self._docs[index])
+            state = config.get("summarization", {})
+            uuids = state.get("uuids", []) if isinstance(state, dict) else []
+            es_docs = self._es_docs(uuids[0]) if uuids else []
+            text = "\n".join(es_docs or [self._docs[index] for index in sorted(self._docs) if self._docs[index]])
             summary = self._llm_summary(text) or {"events": [], "video_summary": text}
             result = json.dumps(summary, ensure_ascii=False)
             return {"summarization": {"result": result, "metadata": {}}}
+        if "retriever_function" in config:
+            text = "\n".join(self._docs[index] for index in sorted(self._docs) if self._docs[index])
+            return {"retriever_function": {"response": text, "metadata": {}}}
         return {}
 
     def reset(self, expr=None):
