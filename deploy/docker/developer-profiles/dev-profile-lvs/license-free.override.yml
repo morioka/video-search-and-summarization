@@ -6,7 +6,7 @@
 
 services:
   lvs-server:
-    image: ${VSS_LVS_IMAGE:-vss-lvs-local:3.2.3}
+    image: ${VSS_LVS_IMAGE:-vss-lvs-local:3.2.4}
 
   vss-agent:
     image: ${VSS_AGENT_IMAGE:-vss-agent-local:3.2.5}
