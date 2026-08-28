@@ -100,6 +100,7 @@ class StreamRegistry:
     async def _run(self, stream_id: str, url: str, description: str, sensor_name: str) -> None:
         offset = 0.0
         chunk_index = 0
+        retry_delay = 2.0
         while True:
             try:
                 with tempfile.TemporaryDirectory(prefix=f"rt-vlm-{stream_id}-") as directory:
@@ -165,11 +166,13 @@ class StreamRegistry:
                         logger.exception("alert bridge request failed for %s", stream_id)
                     offset += duration
                     chunk_index += 1
+                    retry_delay = 2.0
             except asyncio.CancelledError:
                 raise
             except Exception:
-                logger.exception("stream worker failed for %s; retrying", stream_id)
-                await asyncio.sleep(2)
+                logger.exception("stream worker failed for %s; retrying in %.1fs", stream_id, retry_delay)
+                await asyncio.sleep(retry_delay)
+                retry_delay = min(retry_delay * 2.0, 30.0)
 
 
 def _settings_for_worker(frames: int):

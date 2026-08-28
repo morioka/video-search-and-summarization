@@ -412,3 +412,4 @@ uv run --extra dev python scripts/e2e.py \
 - Alertの`vlm_enhanced_sink`は現在のローカル設定では`elastic`のため、Kafkaの`mdx-vlm-incidents`には出力されない。元実装にはKafka sink実装が存在し、`vlm_enhanced_sink.type: kafka`と`incident.kafka.topic`/`alert.kafka.topic`を設定すれば再発行を選択できる。Kafka出力の実ブローカー検証は次段階とする。
 - [x] `ALERT_VLM_ENHANCED_SINK_TYPE=kafka`の環境変数overrideをメイン処理・FastAPI側の両設定ローダーへ反映した。実動画のオンデマンド検証で`VLMEnhancedKafkaSink`が`mdx-vlm-incidents`へ送信し、Kafka partition 1のoffsetが0から1へ増加することを確認した。既定のElastic出力とKafka再発行を設定で選択できる。
 - 2026-08-27終了時点: 保存動画検索、OpenAI版RT-VLM、AlertのChat互換VLM検証、Elasticsearch保存、Kafka再発行まで実動作を確認した。検証用の`alert-bridge`、`alert-bridge-redis`、ローカルRTVIコンテナは停止済み。次回はRTSP長時間安定性または元仕様のIncident検証経路から再開する。
+- 2026-08-28再開: RTSP/fileストリームワーカーの失敗リトライを固定2秒から指数バックオフ（2→4→8…最大30秒）へ変更し、成功時に2秒へリセットするようにした。実動画を含むRTVIテストは14件すべて成功。長時間RTSPの実測は未完了。

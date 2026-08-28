@@ -265,7 +265,10 @@ async def test_file_stream_worker_processes_real_chunk(tmp_path: Path) -> None:
         frames=2,
     )
     stream_id = await registry.add(stream_id="local-file", url=source.as_uri(), description="test", sensor_name="cam")
-    await asyncio.sleep(3)
+    for _ in range(20):
+        if publisher.messages:
+            break
+        await asyncio.sleep(0.5)
     await registry.remove(stream_id)
     assert publisher.messages
     assert publisher.messages[0]["stream_id"] == "local-file"
