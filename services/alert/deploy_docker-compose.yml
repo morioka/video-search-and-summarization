@@ -40,6 +40,10 @@ services:
     network_mode: "host"
     environment:
       - FASTAPI_PORT=${FASTAPI_PORT:-9080}
+      # OpenAI-compatible VLM override. Leave empty to use config.yaml.
+      - VLM_BASE_URL=${VLM_BASE_URL:-}
+      - VLM_MODEL=${VLM_MODEL:-}
+      - VLM_API_KEY=${VLM_API_KEY:-${OPENAI_API_KEY:-}}
       - ALERT_REVIEW_MEDIA_BASE_DIR=${ALERT_REVIEW_MEDIA_BASE_DIR:-}
       # Storage service endpoint override for VST media path resolution
       # Example resolves to: http://127.0.0.1:30000
