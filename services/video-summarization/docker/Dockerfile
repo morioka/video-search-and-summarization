@@ -14,6 +14,7 @@
 # limitations under the License.
 
 ARG BASE_IMAGE="via-engine-base"
+ARG INSTALL_CTX_RAG="true"
 
 # Package installer: ubuntu base for shell + uv (uv is discarded; only site-packages reach final image)
 FROM nvcr.io/nvidia/base/ubuntu:jammy-20250415.1 AS pkg-installer
@@ -26,11 +27,15 @@ ENV PIP_RETRIES=5
 RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-RUN uv pip install \
-    "vss-ctx-rag @ git+https://github.com/NVIDIA/context-aware-rag.git@release/3.0.1" \
-    "vss-ctx-rag-arango @ git+https://github.com/NVIDIA/context-aware-rag.git@release/3.0.1#subdirectory=packages/vss_ctx_rag_arango" \
-    --extra-index-url https://pypi.nvidia.com/ \
-    --python-version 3.13 --target /tmp/packages
+RUN if [ "$INSTALL_CTX_RAG" = "true" ]; then \
+      uv pip install \
+        "vss-ctx-rag @ git+https://github.com/NVIDIA/context-aware-rag.git@release/3.0.1" \
+        "vss-ctx-rag-arango @ git+https://github.com/NVIDIA/context-aware-rag.git@release/3.0.1#subdirectory=packages/vss_ctx_rag_arango" \
+        --extra-index-url https://pypi.nvidia.com/ \
+        --python-version 3.13 --target /tmp/packages; \
+    else \
+      mkdir -p /tmp/packages; \
+    fi
 
 # Ubuntu builder: shell-based operations only — user creation, config/source copy scripts
 FROM nvcr.io/nvidia/base/ubuntu:jammy-20250415.1 AS app-builder
