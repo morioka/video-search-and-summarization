@@ -1,0 +1,42 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Optional override for the stored-video VSS path. It replaces the
+# NVIDIA-distributed application images with locally built images. Infrastructure
+# images (Kafka, Elasticsearch, Redis, PostgreSQL) remain unchanged.
+
+services:
+  lvs-server:
+    image: ${VSS_LVS_IMAGE:-vss-lvs-local:3.2.4}
+
+  vss-agent:
+    image: ${VSS_AGENT_IMAGE:-vss-agent-local:3.2.5}
+
+  vss-va-mcp:
+    image: ${VSS_AGENT_IMAGE:-vss-agent-local:3.2.5}
+
+  vss-ui:
+    image: ${VSS_UI_IMAGE:-vss-ui-local:3.2.0}
+
+  rtvi-vlm:
+    image: ${RTVI_VLM_IMAGE:-vss-rt-vlm:local}
+
+  nvstreamer-lvs:
+    image: ${NVSTREAMER_IMAGE:-vss-nvstreamer-local:3.2.1}
+
+  # The proprietary Video Analytics API image is unavailable without NGC
+  # access. This local read-only replacement serves the Alerts UI on 8081.
+  vss-video-analytics-api:
+    build:
+      # Compose project directory is deploy/docker; implementation lives at repo/services.
+      context: ../../services/analytics/video-analytics-api-local
+    image: ${VIDEO_ANALYTICS_API_IMAGE:-vss-video-analytics-api-local:dev}
+    network_mode: "host"
+    environment:
+      ELASTICSEARCH_URL: ${ELASTICSEARCH_URL:-http://127.0.0.1:9200}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8081/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
