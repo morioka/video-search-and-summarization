@@ -476,6 +476,19 @@ class AnomalyEnhancer(AsyncDispatchMixin, AsyncExternalIOMixin, AsyncVLMModeMixi
                     alert = sink.setdefault("alert", {}).setdefault("kafka", {})
                     incident["topic"] = os.getenv("ALERT_VLM_INCIDENT_TOPIC", incident.get("topic", "mdx-vlm-incidents"))
                     alert["topic"] = os.getenv("ALERT_VLM_ALERT_TOPIC", alert.get("topic", "mdx-vlm-alerts"))
+
+            # Keep the VLM backend loosely coupled to the deployment.  NIM,
+            # local vLLM/Ollama, and hosted OpenAI-compatible endpoints all
+            # use the same client; only the endpoint/model/key need changing.
+            vlm = config.setdefault("vlm", {})
+            for env_name, config_key in (
+                ("VLM_BASE_URL", "base_url"),
+                ("VLM_MODEL", "model"),
+                ("VLM_API_KEY", "api_key"),
+            ):
+                value = os.getenv(env_name)
+                if value:
+                    vlm[config_key] = value
             return config
 
         except FileNotFoundError:

@@ -40,7 +40,9 @@ class _VLMClientBase:
         self.max_tokens = config.get("max_tokens")
         self.temperature = config.get("temperature")
         self.stream = False
-        self.api_key = "not-used"
+        # Local NIM/vLLM servers commonly ignore the key, while hosted
+        # OpenAI-compatible endpoints require it.  Keep a harmless default.
+        self.api_key = config.get("api_key") or os.getenv("VLM_API_KEY") or "not-used"
         self.request_timeout = config.get('request_timeout', 5)
         self.use_vlm_media_defaults = config.get('use_vlm_media_defaults', False)
         logger.info("use_vlm_media_defaults=%s", self.use_vlm_media_defaults)
