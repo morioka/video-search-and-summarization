@@ -431,3 +431,6 @@ uv run --extra dev python scripts/e2e.py \
 - preflightのユニットテストを追加し、正常系・対象ストリーム欠落・サービス接続失敗を検証した。RT-VLMテストは18件成功、ruffも成功した。
 - preflightに`--check-timeline-api`を追加した。保存動画の`/complete`に必須の`/vst/api/v1/storage/timelines`が404の場合、Agent検索へ進む前に検出できる。フォークへ`c785e04c9`として同期済み。
 - 動画再登録を試行し、NVStreamerへの単一チャンクuploadはHTTP 200で`sensorId`を取得できた。しかしローカルNVStreamer単体構成では`/vst/api/v1/storage/timelines`と`/vst/api/v1/storage/file/{sensor}/url`が404となり、Agentの`/complete`はタイムライン取得で502になった。起動順序の問題ではなく、storage adaptor/streamprocessingを含むVST構成が必要な制約である。推測でAgentに代替タイムラインを実装せず、正式VST構成または既存検証データを使う方針とする。検証用コンテナは停止済み。
+- 2026-08-28 Alert回帰確認: `vss-alert-bridge:local`を再ビルドし、Redisとともに起動して`GET /health` HTTP 200を確認した。`POST /api/v1/verification/ondemand`は入力不足時にHTTP 400、正常なIncidentではHTTP 202を返した。
+- 実動画`konro_inspection.mp4`をHTTP配信し、Alertのオンデマンド検証からOpenAI互換RT-VLM（`vss-rt-vlm:local`）へ接続した。`VLM response received (direct video)`（約4.7秒）とElasticsearch `mdx-vlm-incidents-2026-08-28`への保存を確認した。疑似URLではRT-VLMのffprobe失敗も`verification-failed`文書として保存され、失敗時の永続化契約も維持された。
+- Alertの`vlm.base_url`は現状環境変数ではなく`config.yaml`が優先されるため、NIMを使わない実行では設定ファイルをOpenAI互換URLへ切り替える必要がある。`rtvi_vlm.base_url`用の`RTVI_VLM_BASE_URL`とは別設定である。
