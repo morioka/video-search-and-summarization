@@ -65,3 +65,4 @@ API単体を手動起動する必要はない。
 - センサー別API（`/alert-bridge/api/v1/realtime/incidents?sensor_id=local-konro-inspection`）でも生成済みAlertを取得でき、疑似RTSP実行中に複数件が蓄積することを確認した。
 - pass-through用の`local-konro-inspection-pt2`で、`video_path=/media/konro_inspection.mp4`、`verificationResponseCode=200`、`verificationResponseStatus=OK`を確認した。VSTタイムラインなしでもローカル動画によるVLM検証とElastic保存が完了する。
 - 検証用ルールは`local-konro-inspection-pt2`の1件に整理した。RT-VLMテスト18件とruffチェックは成功。
+- `services/alert/docker-compose.local.yml`でAlert Bridge/Kafka/Redisを一括起動し、`/health`が200、RT-VLMストリームが`inference_active=true`になることを確認した。以後、手動`docker run`は不要。
