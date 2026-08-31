@@ -66,3 +66,6 @@ API単体を手動起動する必要はない。
 - pass-through用の`local-konro-inspection-pt2`で、`video_path=/media/konro_inspection.mp4`、`verificationResponseCode=200`、`verificationResponseStatus=OK`を確認した。VSTタイムラインなしでもローカル動画によるVLM検証とElastic保存が完了する。
 - 検証用ルールは`local-konro-inspection-pt2`の1件に整理した。RT-VLMテスト18件とruffチェックは成功。
 - `services/alert/docker-compose.local.yml`でAlert Bridge/Kafka/Redisを一括起動し、`/health`が200、RT-VLMストリームが`inference_active=true`になることを確認した。以後、手動`docker run`は不要。
+- 保存動画E2Eを実行し、`konro_inspection.mp4`（3.75MB）をアップロード後、10秒チャンク2件のcaption生成と削除までHTTP経路で完了した。VLM応答は各チャンク約1.2〜2.0秒。
+- 保存動画検索の`preflight.py`は、VST `127.0.0.1:31000` が未起動のため停止した。RT-VLM/Alert経路の障害ではなく、VST/NVStreamer起動が次の前提条件である。
+- 停止済み`vss-vios-nvstreamer-lvs`を再起動すると sensor API は`200`になったが、`/vst/api/v1/storage/timelines`は`404`（storage adaptor未提供）で、保存動画検索の前提は未充足。ストリーム一覧も0件。
