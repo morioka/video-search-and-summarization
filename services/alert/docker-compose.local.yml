@@ -1,0 +1,51 @@
+# Local, NVIDIA-image-free Alert Bridge stack for functional validation.
+services:
+  alert-bridge-kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: alert-bridge-kafka
+    network_mode: host
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_NODE_ID: 1
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+
+  alert-bridge-redis:
+    image: redis/redis-stack-server:7.2.0-v9
+    container_name: alert-bridge-redis
+    network_mode: host
+    volumes:
+      - alert_bridge_redis_data:/data
+
+  alert-bridge:
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+    image: vss-alert-bridge:local
+    container_name: alert-bridge
+    network_mode: host
+    user: "0:0"
+    env_file:
+      - ../../env
+    environment:
+      FASTAPI_PORT: "9080"
+      VLM_WARMUP_ENABLED: "false"
+      ALERT_AGENT_VST_PASS_THROUGH_MODE: "true"
+      VLM_BASE_URL: http://127.0.0.1:8018/v1
+      VLM_MODEL: gpt-4.1-mini
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - /home/morioka/temp/Video-to-SOP-Generator/Videos/konro_inspection.mp4:/media/konro_inspection.mp4:ro
+    depends_on:
+      - alert-bridge-redis
+      - alert-bridge-kafka
+
+volumes:
+  alert_bridge_redis_data:

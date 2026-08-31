@@ -1,5 +1,14 @@
 # Alerts Microservice
 
+ローカル検証では、NVIDIA配布イメージを使わずに次の compose を利用できます。
+
+```bash
+docker compose -f services/alert/docker-compose.local.yml up -d --build
+```
+
+Redis/Kafka/Alert Bridge を一括起動し、`ALERT_AGENT_VST_PASS_THROUGH_MODE=true` と検証動画の
+マウントを設定します。RT-VLM は別途 `services/rtvi/rt-vlm-openai/docker-compose.local.yml` で起動します。
+
 **A modular, configuration-driven Alerts microservice for the Video Search and
 Summarization (VSS) blueprint — VLM-based alert verification, realtime alert
 generation, and on-demand clip verification.**
@@ -60,6 +69,27 @@ pip install -r requirements.txt
 ```
 
 Or build/run with Docker (see Quick Start).
+
+For a local functional build without the NVIDIA NGC distroless base image:
+
+```bash
+docker build -f services/alert/Dockerfile.local -t vss-alert-bridge:local services/alert
+```
+
+For a full VSS stack, add
+`deploy/docker/services/alert/alert-local.override.yml` to the parent Compose
+configuration that defines Kafka, Redis, and Elasticsearch, then start the
+`alert-bridge` profile. For an isolated smoke test, run the image directly and
+mount a compatible config file, for example:
+
+```bash
+docker run --rm --network host \
+  -v "$PWD/services/alert/config.yaml:/app/config.yaml:ro" \
+  vss-alert-bridge:local
+```
+
+This image is intended for HTTP/Kafka/Elasticsearch integration tests. It is
+not a byte-for-byte replacement for the NVIDIA-distributed runtime image.
 
 ## Quick Start
 
