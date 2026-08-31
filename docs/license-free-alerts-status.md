@@ -71,5 +71,6 @@ API単体を手動起動する必要はない。
 - 保存動画E2Eを実行し、`konro_inspection.mp4`（3.75MB）をアップロード後、10秒チャンク2件のcaption生成と削除までHTTP経路で完了した。VLM応答は各チャンク約1.2〜2.0秒。
 - `vss-agent`を再起動し、内部`/health`が`{"value":{"isAlive":true}}`、`openai_vlm`（remote）と`es_caption`検索バックエンドが初期化されることを確認した。
 - Agent検索の実行では、従来の`VST_INTERNAL_URL=http://<HOST_IP>:30888`がVST stream APIで502を返した。ローカルNVStreamer互換APIのsensor endpointは`31000`で200を返すため、`license-free.override.yml`に`VST_INTERNAL_URL=http://127.0.0.1:31000`の上書きを追加した。既存コンテナへ反映するには次回Compose再作成が必要。
+- Compose再作成時は生成環境ファイルの`VSS_AGENT_PORT=8000`がコマンドへ展開されるため、override側で`command`も`8001`へ固定した。反映後、Agent検索は502ではなく`video_list=[]`を返し、VST接続自体は復旧した。保存動画をVSTへ登録していないため、caption検索結果は空である。
 - 保存動画検索の`preflight.py`は、VST `127.0.0.1:31000` が未起動のため停止した。RT-VLM/Alert経路の障害ではなく、VST/NVStreamer起動が次の前提条件である。
 - 停止済み`vss-vios-nvstreamer-lvs`を再起動すると sensor API は`200`になったが、`/vst/api/v1/storage/timelines`は`404`（storage adaptor未提供）で、保存動画検索の前提は未充足。ストリーム一覧も0件。
