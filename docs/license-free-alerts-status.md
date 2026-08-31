@@ -74,5 +74,18 @@ API単体を手動起動する必要はない。
 - Compose再作成時は生成環境ファイルの`VSS_AGENT_PORT=8000`がコマンドへ展開されるため、override側で`command`も`8001`へ固定した。反映後、Agent検索は502ではなく`video_list=[]`を返し、VST接続自体は復旧した。保存動画をVSTへ登録していないため、caption検索結果は空である。
 - VST互換アップロードAPIへ`konro_inspection.mp4`を登録すると、sensor/stream IDは発行される。しかし`POST /api/v1/videos/{sensor_id}/complete`は`/storage/timelines`の404で停止する。保存動画検索を成立させるには、timelineとstorage URLを提供するローカルStorage Adaptor、またはAgentのローカルファイルフォールバックが必要。
 - ローカルファイルフォールバックを実装してAgentイメージを再ビルドしたが、NVStreamerの応答する`/home/vst/.../streamer_videos`がホストのbind mountへ現れず、Agentからファイルを読めなかった。NVStreamer側の保存先設定をbind mountへ合わせることが次の作業。
+- ローカルStorage互換サービス`vss-vst-storage-local`を追加し、`31001`でupload/timelines/file-url/sensor-streamsを提供。単体のhealth、動画保存、timeline取得を確認済み。Agent overrideの`VST_INTERNAL_URL`を`http://127.0.0.1:31001`へ変更した。再開時はStorageサービス起動後に`vss-agent`をoverride付きComposeで再作成し、アップロード完了APIを再検証する。
+
+## 再開コマンド（2026-08-31）
+
+```bash
+docker run -d --name vss-vst-storage-local --network host \
+  -v "$PWD/deploy/docker/data-dir/videos/dev-profile-lvs:/data/videos" \
+  vss-vst-storage-local:dev
+cd deploy/docker
+docker compose --env-file developer-profiles/dev-profile-lvs/generated.env \
+  -f compose.yml -f developer-profiles/dev-profile-lvs/license-free.override.yml \
+  up -d --no-deps --force-recreate vss-agent
+```
 - 保存動画検索の`preflight.py`は、VST `127.0.0.1:31000` が未起動のため停止した。RT-VLM/Alert経路の障害ではなく、VST/NVStreamer起動が次の前提条件である。
 - 停止済み`vss-vios-nvstreamer-lvs`を再起動すると sensor API は`200`になったが、`/vst/api/v1/storage/timelines`は`404`（storage adaptor未提供）で、保存動画検索の前提は未充足。ストリーム一覧も0件。
