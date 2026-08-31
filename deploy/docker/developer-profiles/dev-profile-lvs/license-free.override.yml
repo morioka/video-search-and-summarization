@@ -11,11 +11,11 @@ services:
   vss-agent:
     image: ${VSS_AGENT_IMAGE:-vss-agent-local:3.2.5}
     volumes:
-      - /home/vst:/home/vst:ro
+      - ./data-dir/videos/dev-profile-lvs:/home/vst/vst_release/streamer_videos:ro
     environment:
       # The local NVStreamer compatibility API listens on 31000. The
       # proprietary VST ingress on 30888 does not expose stream inventory.
-      VST_INTERNAL_URL: ${LICENSE_FREE_VST_INTERNAL_URL:-http://127.0.0.1:31000}
+      VST_INTERNAL_URL: ${LICENSE_FREE_VST_INTERNAL_URL:-http://127.0.0.1:31001}
       # Port 8000 is occupied by the base profile; the local Agent instance
       # historically runs on 8001.
       VSS_AGENT_PORT: ${LICENSE_FREE_AGENT_PORT:-8001}
@@ -24,7 +24,7 @@ services:
   vss-va-mcp:
     image: ${VSS_AGENT_IMAGE:-vss-agent-local:3.2.5}
     environment:
-      VST_INTERNAL_URL: ${LICENSE_FREE_VST_INTERNAL_URL:-http://127.0.0.1:31000}
+      VST_INTERNAL_URL: ${LICENSE_FREE_VST_INTERNAL_URL:-http://127.0.0.1:31001}
       VSS_AGENT_PORT: ${LICENSE_FREE_AGENT_PORT:-8001}
 
   vss-ui:
