@@ -14,11 +14,16 @@ services:
       # The local NVStreamer compatibility API listens on 31000. The
       # proprietary VST ingress on 30888 does not expose stream inventory.
       VST_INTERNAL_URL: ${LICENSE_FREE_VST_INTERNAL_URL:-http://127.0.0.1:31000}
+      # Port 8000 is occupied by the base profile; the local Agent instance
+      # historically runs on 8001.
+      VSS_AGENT_PORT: ${LICENSE_FREE_AGENT_PORT:-8001}
+    command: ["serve", "--config_file", "/vss-agent/deploy/docker/developer-profiles/dev-profile-lvs/vss-agent/configs/config.yml", "--host", "0.0.0.0", "--port", "${LICENSE_FREE_AGENT_PORT:-8001}"]
 
   vss-va-mcp:
     image: ${VSS_AGENT_IMAGE:-vss-agent-local:3.2.5}
     environment:
       VST_INTERNAL_URL: ${LICENSE_FREE_VST_INTERNAL_URL:-http://127.0.0.1:31000}
+      VSS_AGENT_PORT: ${LICENSE_FREE_AGENT_PORT:-8001}
 
   vss-ui:
     image: ${VSS_UI_IMAGE:-vss-ui-local:3.2.0}
