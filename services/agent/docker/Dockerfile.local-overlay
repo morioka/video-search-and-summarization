@@ -1,0 +1,9 @@
+# Fast local iteration image layered on a previously built Agent image.
+ARG BASE_IMAGE=vss-agent-local:3.2.2
+FROM ${BASE_IMAGE}
+
+USER root
+COPY services/agent/src/vss_agents/register_knowledge_layers.py /vss-agent/.venv/lib/python3.13/site-packages/vss_agents/register_knowledge_layers.py
+COPY services/agent/src/vss_agents/tools/vst/utils.py /vss-agent/.venv/lib/python3.13/site-packages/vss_agents/tools/vst/utils.py
+COPY services/agent/src/vss_agents/api/video_ingest.py /vss-agent/.venv/lib/python3.13/site-packages/vss_agents/api/video_ingest.py
+USER 1000:1000
