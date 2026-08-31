@@ -10,9 +10,15 @@ services:
 
   vss-agent:
     image: ${VSS_AGENT_IMAGE:-vss-agent-local:3.2.5}
+    environment:
+      # The local NVStreamer compatibility API listens on 31000. The
+      # proprietary VST ingress on 30888 does not expose stream inventory.
+      VST_INTERNAL_URL: ${LICENSE_FREE_VST_INTERNAL_URL:-http://127.0.0.1:31000}
 
   vss-va-mcp:
     image: ${VSS_AGENT_IMAGE:-vss-agent-local:3.2.5}
+    environment:
+      VST_INTERNAL_URL: ${LICENSE_FREE_VST_INTERNAL_URL:-http://127.0.0.1:31000}
 
   vss-ui:
     image: ${VSS_UI_IMAGE:-vss-ui-local:3.2.0}
