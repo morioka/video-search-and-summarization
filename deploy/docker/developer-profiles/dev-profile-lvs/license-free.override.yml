@@ -10,6 +10,8 @@ services:
 
   vss-agent:
     image: ${VSS_AGENT_IMAGE:-vss-agent-local:3.2.5}
+    volumes:
+      - /home/vst:/home/vst:ro
     environment:
       # The local NVStreamer compatibility API listens on 31000. The
       # proprietary VST ingress on 30888 does not expose stream inventory.

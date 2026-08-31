@@ -46,6 +46,7 @@ import os
 import re
 from typing import Any
 import urllib.parse
+from uuid import UUID
 
 from fastapi import APIRouter
 from fastapi import FastAPI
@@ -64,6 +65,7 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_RTVI_CV_TIMEOUT_SECONDS = 60.0
 DEFAULT_RTVI_EMBED_TIMEOUT_SECONDS = 600.0
+DEFAULT_RTVI_VLM_TIMEOUT_SECONDS = 900.0
 DEFAULT_VST_STORAGE_TIMEOUT_SECONDS = 60.0
 DEFAULT_VST_UPLOAD_TIMEOUT_SECONDS = 300.0
 
@@ -220,6 +222,7 @@ class VideoUploadCompleteInput(BaseModel):
         default=None,
         description="Original filename returned by VST (used in the response message and RTVI camera_name)",
     )
+    file_path: str | None = Field(default=None, alias="filePath")
     custom_params: dict[str, Any] | None = Field(
         default=None,
         description="Optional per-upload custom parameters forwarded by the UI",
@@ -241,6 +244,7 @@ class _VideoUploadConfig(BaseModel):
     vst_internal_url: str
     vst_external_url: str = ""
     rtvi_embed_base_url: str = ""
+    rtvi_vlm_base_url: str = ""
     rtvi_cv_base_url: str = ""
     rtvi_embed_model: str = "cosmos-embed1-448p"
     rtvi_embed_chunk_duration: int = 5
@@ -263,6 +267,7 @@ def _resolve_video_upload_config(config: "Any") -> _VideoUploadConfig | None:
         vst_internal_url = getattr(streaming_config, "vst_internal_url", None) or os.getenv("VST_INTERNAL_URL", "")
         vst_external_url = getattr(streaming_config, "vst_external_url", None) or os.getenv("VST_EXTERNAL_URL", "")
         rtvi_embed_base_url = getattr(streaming_config, "rtvi_embed_base_url", None) or ""
+        rtvi_vlm_base_url = getattr(streaming_config, "rtvi_vlm_base_url", None) or os.getenv("RTVI_VLM_BASE_URL", "")
         rtvi_cv_base_url = getattr(streaming_config, "rtvi_cv_base_url", None) or ""
         rtvi_embed_model = getattr(streaming_config, "rtvi_embed_model", "cosmos-embed1-448p")
         rtvi_embed_chunk_duration = getattr(streaming_config, "rtvi_embed_chunk_duration", 5)
@@ -278,6 +283,7 @@ def _resolve_video_upload_config(config: "Any") -> _VideoUploadConfig | None:
         rtvi_embed_port = os.getenv("RTVI_EMBED_PORT", "")
         rtvi_cv_port = os.getenv("RTVI_CV_PORT", "")
         rtvi_embed_base_url = f"http://{host_ip}:{rtvi_embed_port}" if host_ip and rtvi_embed_port else ""
+        rtvi_vlm_base_url = os.getenv("RTVI_VLM_BASE_URL", "")
         rtvi_cv_base_url = f"http://{host_ip}:{rtvi_cv_port}" if host_ip and rtvi_cv_port else ""
         rtvi_embed_model = os.getenv("RTVI_EMBED_MODEL", "cosmos-embed1-448p")
         rtvi_embed_chunk_duration = 5
@@ -315,6 +321,7 @@ def _resolve_video_upload_config(config: "Any") -> _VideoUploadConfig | None:
         vst_internal_url=vst_internal_url,
         vst_external_url=vst_external_url or vst_internal_url,
         rtvi_embed_base_url=rtvi_embed_base_url,
+        rtvi_vlm_base_url=rtvi_vlm_base_url,
         rtvi_cv_base_url=rtvi_cv_base_url,
         rtvi_embed_model=rtvi_embed_model,
         rtvi_embed_chunk_duration=rtvi_embed_chunk_duration,
@@ -441,7 +448,62 @@ async def _run_rtvi_embedding(
         logger.info("RTVI Embedding generation successful")
         # `usage.total_chunks_processed` is the server-side count; coerce
         # explicitly so mypy keeps the helper's int return type intact.
-        return int(result.get("usage", {}).get("total_chunks_processed", 0) or 0)
+    return int(result.get("usage", {}).get("total_chunks_processed", 0) or 0)
+
+
+async def _run_rtvi_vlm(
+    *,
+    rtvi_vlm_base_url: str,
+    sensor_id: str,
+    camera_name: str,
+    filename: str,
+    vst_file_path: str,
+    vst_url: str,
+    timeout_seconds: float = DEFAULT_RTVI_VLM_TIMEOUT_SECONDS,
+) -> int:
+    """Upload the completed VST file to RT-VLM and publish its captions."""
+    try:
+        file_id = UUID(sensor_id)
+    except ValueError:
+        logger.warning("RTVI-VLM skipped: VST sensor id is not a UUID: %s", sensor_id)
+        return 0
+    translated_url = rewrite_url_host(vst_file_path, urllib.parse.urlparse(vst_url).hostname or "")
+    timeout = httpx.Timeout(timeout_seconds, connect=30.0)
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        if vst_file_path.startswith("/"):
+            # Local license-free VST exposes the uploaded file on a shared
+            # read-only mount instead of providing the proprietary URL API.
+            response_content = await asyncio.to_thread(lambda: open(vst_file_path, "rb").read())
+        else:
+            response = await client.get(translated_url)
+            response.raise_for_status()
+            response_content = response.content
+        upload = await client.post(
+            f"{rtvi_vlm_base_url.rstrip('/')}/v1/files",
+            files={"file": (filename, response_content, "video/mp4")},
+            data={
+                "purpose": "vision",
+                "media_type": "video",
+                "sensor_name": camera_name,
+                "id": str(file_id),
+            },
+        )
+        # A retried completion may already have uploaded this sensor id; the
+        # caption request is idempotent at the asset level, so continue on 409.
+        if upload.status_code != 409:
+            upload.raise_for_status()
+        generated = await client.post(
+            f"{rtvi_vlm_base_url.rstrip('/')}/v1/generate_captions",
+            json={
+                "id": str(file_id),
+                "prompt": "Describe all visible actions and safety-relevant events with timestamps.",
+                "stream": False,
+                "chunk_duration": 30,
+                "num_frames_per_second_or_fixed_frames_chunk": 8,
+            },
+        )
+        generated.raise_for_status()
+        return int((generated.json().get("usage") or {}).get("total_chunks_processed", 0) or 0)
 
 
 async def _run_post_upload_processing(
@@ -450,6 +512,7 @@ async def _run_post_upload_processing(
     filename: str,
     vst_url: str,
     rtvi_embed_base_url: str,
+    rtvi_vlm_base_url: str = "",
     rtvi_cv_base_url: str = "",
     rtvi_embed_model: str = "cosmos-embed1-448p",
     rtvi_embed_chunk_duration: int = 5,
@@ -457,6 +520,7 @@ async def _run_post_upload_processing(
     rtvi_cv_timeout_seconds: float = DEFAULT_RTVI_CV_TIMEOUT_SECONDS,
     rtvi_embed_timeout_seconds: float = DEFAULT_RTVI_EMBED_TIMEOUT_SECONDS,
     vst_storage_timeout_seconds: float = DEFAULT_VST_STORAGE_TIMEOUT_SECONDS,
+    local_file_path: str | None = None,
 ) -> VideoIngestResponse:
     """
     Run post-upload processing: get timeline, get video URL, add to RTVI-CV, generate embeddings.
@@ -478,14 +542,22 @@ async def _run_post_upload_processing(
     """
     start_timestamp = "2025-01-01T00:00:00.000Z"
 
-    # Get timeline
+    # Get timeline. Local compatibility VST may not expose the proprietary
+    # timeline endpoint; use the upload response's shared file path instead.
     try:
         with TimeMeasure("video_ingest: get timeline from VST"):
             timeline_start_time, timeline_end_time = await get_timeline(sensor_id, vst_url)
     except VSTError as e:
-        logger.error("Timelines API failed for stream %s: %s", sensor_id, e)
-        raise HTTPException(status_code=502, detail=f"Timelines API failed: {e}") from e
+        if local_file_path:
+            logger.warning("Timeline unavailable; using local file fallback: %s", e)
+            timeline_start_time, timeline_end_time = start_timestamp, start_timestamp
+            vst_file_path = local_file_path
+        else:
+            logger.error("Timelines API failed for stream %s: %s", sensor_id, e)
+            raise HTTPException(status_code=502, detail=f"Timelines API failed: {e}") from e
 
+    if local_file_path:
+        vst_file_path = local_file_path
     if not timeline_start_time or not timeline_end_time:
         error_msg = f"No valid timeline for stream {sensor_id}"
         logger.error(error_msg)
@@ -498,8 +570,13 @@ async def _run_post_upload_processing(
         timeline_end_time,
     )
 
-    # Get video URL via storage API
-    storage_url = f"{vst_url}/vst/api/v1/storage/file/{urllib.parse.quote(sensor_id, safe='')}/url"
+    # Get video URL via storage API unless a shared local file was supplied.
+    if local_file_path:
+        storage_url = local_file_path
+    else:
+        storage_url = None
+    if storage_url is None:
+        storage_url = f"{vst_url}/vst/api/v1/storage/file/{urllib.parse.quote(sensor_id, safe='')}/url"
     storage_params = {
         "startTime": timeline_start_time,
         "endTime": timeline_end_time,
@@ -508,23 +585,20 @@ async def _run_post_upload_processing(
     }
     logger.info(f"Calling Storage API: GET {storage_url}")
 
-    async with httpx.AsyncClient(timeout=vst_storage_timeout_seconds) as client:
-        with TimeMeasure("video_ingest: get storage URL from VST"):
-            storage_response = await client.get(storage_url, params=storage_params)
-
-        if storage_response.status_code != 200:
-            error_msg = f"Storage API failed with status {storage_response.status_code}: {storage_response.text}"
-            logger.error(error_msg)
-            raise HTTPException(status_code=502, detail=f"Storage API failed: {error_msg}")
-
-        storage_result = storage_response.json()
-        vst_file_path = storage_result.get("videoUrl")
-        if not vst_file_path:
-            error_msg = f"Storage API response missing 'videoUrl' field: {storage_result}"
-            logger.error(error_msg)
-            raise HTTPException(status_code=502, detail=f"Storage API response invalid: {error_msg}")
-
-        logger.info(f"VST video URL obtained: {vst_file_path}")
+    if local_file_path:
+        vst_file_path = local_file_path
+    else:
+        async with httpx.AsyncClient(timeout=vst_storage_timeout_seconds) as client:
+            with TimeMeasure("video_ingest: get storage URL from VST"):
+                storage_response = await client.get(storage_url, params=storage_params)
+            if storage_response.status_code != 200:
+                error_msg = f"Storage API failed with status {storage_response.status_code}: {storage_response.text}"
+                raise HTTPException(status_code=502, detail=f"Storage API failed: {error_msg}")
+            storage_result = storage_response.json()
+            vst_file_path = storage_result.get("videoUrl")
+            if not vst_file_path:
+                raise HTTPException(status_code=502, detail="Storage API response missing videoUrl")
+            logger.info("VST video URL obtained: %s", vst_file_path)
 
     # Register with RTVI-CV and trigger embedding generation concurrently.
     # The two services are independent — they both consume the VST storage URL
@@ -533,6 +607,7 @@ async def _run_post_upload_processing(
     # of cv_time + embed_time. The embed call is the long pole (it blocks
     # until generation completes, up to 600s), so the savings are real.
     parsed_cv = _parse_optional_http_url(rtvi_cv_base_url)
+    parsed_vlm = _parse_optional_http_url(rtvi_vlm_base_url)
     parsed_embed = _parse_optional_http_url(rtvi_embed_base_url)
 
     rtvi_tasks: list[tuple[str, Any]] = []
@@ -553,6 +628,18 @@ async def _run_post_upload_processing(
         )
     else:
         logger.info("RTVI-CV not configured, skipping")
+
+    if parsed_vlm is not None:
+        rtvi_tasks.append(("rtvi-vlm", _run_rtvi_vlm(
+            rtvi_vlm_base_url=rtvi_vlm_base_url,
+            sensor_id=sensor_id,
+            camera_name=camera_name,
+            filename=filename,
+            vst_file_path=vst_file_path,
+            vst_url=vst_url,
+        )))
+    else:
+        logger.info("RTVI-VLM not configured, skipping")
 
     chunks_processed = 0
     if parsed_embed is not None:
@@ -588,14 +675,16 @@ async def _run_post_upload_processing(
             if isinstance(result, BaseException):
                 logger.error("%s task failed: %s", label, result)
                 raise result
-            if label == "rtvi-embed":
+            if label in {"rtvi-embed", "rtvi-vlm"}:
                 chunks_processed = result or 0
 
-    message = (
-        f"Video {filename} successfully uploaded to VST and embeddings generated"
-        if parsed_embed is not None
-        else f"Video {filename} successfully uploaded to VST"
-    )
+    generated_steps = []
+    if parsed_embed is not None:
+        generated_steps.append("embeddings")
+    if parsed_vlm is not None:
+        generated_steps.append("captions")
+    suffix = f" and {' and '.join(generated_steps)} generated" if generated_steps else ""
+    message = f"Video {filename} successfully uploaded to VST{suffix}"
     return VideoIngestResponse(
         message=message,
         sensor_id=sensor_id,
@@ -640,6 +729,7 @@ def create_video_upload_router(vst_external_url: str) -> APIRouter:
 def create_video_upload_complete_router(
     vst_internal_url: str,
     rtvi_embed_base_url: str = "",
+    rtvi_vlm_base_url: str = "",
     rtvi_cv_base_url: str = "",
     rtvi_embed_model: str = "cosmos-embed1-448p",
     rtvi_embed_chunk_duration: int = 5,
@@ -685,7 +775,9 @@ def create_video_upload_complete_router(
                 sensor_id=sensor_id,
                 filename=filename,
                 vst_url=vst_internal_url,
+                local_file_path=body.file_path,
                 rtvi_embed_base_url=rtvi_embed_base_url,
+                rtvi_vlm_base_url=rtvi_vlm_base_url,
                 rtvi_cv_base_url=rtvi_cv_base_url,
                 rtvi_embed_model=rtvi_embed_model,
                 rtvi_embed_chunk_duration=rtvi_embed_chunk_duration,
@@ -740,6 +832,7 @@ def register_video_upload_complete(app: "FastAPI", config: "Any") -> None:
             create_video_upload_complete_router(
                 vst_internal_url=cfg.vst_internal_url,
                 rtvi_embed_base_url=cfg.rtvi_embed_base_url,
+                rtvi_vlm_base_url=cfg.rtvi_vlm_base_url,
                 rtvi_cv_base_url=cfg.rtvi_cv_base_url,
                 rtvi_embed_model=cfg.rtvi_embed_model,
                 rtvi_embed_chunk_duration=cfg.rtvi_embed_chunk_duration,
