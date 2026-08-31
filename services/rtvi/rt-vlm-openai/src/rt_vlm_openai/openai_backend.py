@@ -20,10 +20,11 @@ class OpenAIBackend:
         base_url: str | None,
         timeout: int,
         max_tokens: int,
+        max_retries: int = 3,
         client: AsyncOpenAI | None = None,
     ) -> None:
         if client is None:
-            kwargs: dict[str, object] = {"api_key": api_key, "timeout": timeout, "max_retries": 3}
+            kwargs: dict[str, object] = {"api_key": api_key, "timeout": timeout, "max_retries": max_retries}
             if base_url:
                 kwargs["base_url"] = base_url
             client = AsyncOpenAI(**kwargs)

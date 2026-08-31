@@ -59,7 +59,9 @@ class GenerateCaptionsRequest(BaseModel):
 
     model_config = ConfigDict(extra="ignore")
 
-    id: UUID
+    # VSS stream identifiers are not necessarily UUIDs (local sensor names and
+    # camera IDs are commonly used by Alert Bridge).
+    id: UUID | str
     prompt: str
     model: str = ""
     stream: bool = False
@@ -100,6 +102,25 @@ class OpenAIResult(StrictModel):
     content: str
     input_tokens: int | None = None
     output_tokens: int | None = None
+
+
+class StreamInput(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    liveStreamUrl: str
+    description: str = ""
+    sensor_name: str = ""
+    id: str | None = None
+
+
+class AddStreamsRequest(BaseModel):
+    streams: list[StreamInput]
+
+
+class StreamResponse(StrictModel):
+    id: str
+    liveStreamUrl: str
+    description: str = ""
+    sensor_name: str = ""
 
 
 JsonDict = dict[str, Any]

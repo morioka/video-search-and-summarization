@@ -302,7 +302,10 @@ class AnomalyEnhancer(AsyncDispatchMixin, AsyncExternalIOMixin, AsyncVLMModeMixi
         self._load_custom_parser()
         self._pluggable_parser = self._load_pluggable_parser()
         self._warn_if_parser_configs_collide()
-        self.vst_pass_through_mode = self.config.get('alert_agent', {}).get('vst_pass_through_mode', False)
+        self.vst_pass_through_mode = os.getenv(
+            'ALERT_AGENT_VST_PASS_THROUGH_MODE',
+            str(self.config.get('alert_agent', {}).get('vst_pass_through_mode', False)),
+        ).lower() in ('1', 'true', 'yes')
         self._vlm_rate_limit_enabled = bool(self.config.get('vlm_rate_limit_enabled', False))
         self.include_latency_info = self.config.get('alert_agent', {}).get('include_latency_info', False)
         self.url_transform_enabled = self.config.get('alert_agent', {}).get('url_transform', {}).get('enabled', True)
@@ -463,7 +466,33 @@ class AnomalyEnhancer(AsyncDispatchMixin, AsyncExternalIOMixin, AsyncVLMModeMixi
 
             # Read the file
             with resolved_path.open('r') as file:
-                return yaml.safe_load(file)
+                config = yaml.safe_load(file) or {}
+
+            # Keep transport selection easy to override in containerized
+            # deployments without maintaining a second full YAML file.
+            sink_type = os.getenv("ALERT_VLM_ENHANCED_SINK_TYPE")
+            if sink_type:
+                sink = config.setdefault("vlm_enhanced_sink", {})
+                sink["type"] = sink_type
+                if sink_type.lower() == "kafka":
+                    incident = sink.setdefault("incident", {}).setdefault("kafka", {})
+                    alert = sink.setdefault("alert", {}).setdefault("kafka", {})
+                    incident["topic"] = os.getenv("ALERT_VLM_INCIDENT_TOPIC", incident.get("topic", "mdx-vlm-incidents"))
+                    alert["topic"] = os.getenv("ALERT_VLM_ALERT_TOPIC", alert.get("topic", "mdx-vlm-alerts"))
+
+            # Keep the VLM backend loosely coupled to the deployment.  NIM,
+            # local vLLM/Ollama, and hosted OpenAI-compatible endpoints all
+            # use the same client; only the endpoint/model/key need changing.
+            vlm = config.setdefault("vlm", {})
+            for env_name, config_key in (
+                ("VLM_BASE_URL", "base_url"),
+                ("VLM_MODEL", "model"),
+                ("VLM_API_KEY", "api_key"),
+            ):
+                value = os.getenv(env_name)
+                if value:
+                    vlm[config_key] = value
+            return config
 
         except FileNotFoundError:
             raise FileNotFoundError(f"Config file not found: {config_file}")

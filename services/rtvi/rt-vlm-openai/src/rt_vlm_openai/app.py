@@ -3,22 +3,33 @@
 
 """FastAPI application implementing the file-captioning RT-VLM contract."""
 
+import asyncio
 import json
 import logging
+import os
+import tempfile
 import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
-from typing import Protocol
+from pathlib import Path
+from typing import Any, Protocol
+from urllib.request import Request as UrlRequest
+from urllib.request import urlopen
 from uuid import UUID, uuid4
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Body, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from openai import OpenAIError
+from starlette.requests import Request
+from starlette.responses import Response
 
+from .alerts import AlertSink
 from .assets import Asset, AssetStore
 from .config import Settings
+from .kafka_publisher import VisionLLMKafkaPublisher
 from .models import (
+    AddStreamsRequest,
     DeleteFileResponse,
     FileInfo,
     GenerateCaptionsRequest,
@@ -27,6 +38,7 @@ from .models import (
     OpenAIResult,
 )
 from .openai_backend import OpenAIBackend
+from .streams import StreamRegistry
 from .video import VideoChunk, VideoMetadata, VideoProcessor, chunk_ranges
 
 logger = logging.getLogger(__name__)
@@ -135,23 +147,62 @@ def create_app(
     runtime_settings = settings or Settings.from_env()
     store = AssetStore(runtime_settings.asset_dir, runtime_settings.max_upload_bytes)
     processor = video_processor or VideoProcessor()
+    request_semaphore = asyncio.Semaphore(runtime_settings.max_concurrent_requests)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         runtime_settings.validate()
         await store.initialize()
+        publisher = VisionLLMKafkaPublisher(runtime_settings.kafka_bootstrap_servers, runtime_settings.kafka_topic)
+        app.state.kafka_publisher = publisher
         app.state.backend = backend or OpenAIBackend(
             api_key=runtime_settings.api_key,
             model=runtime_settings.model,
             base_url=runtime_settings.base_url,
             timeout=runtime_settings.request_timeout_seconds,
             max_tokens=runtime_settings.max_tokens,
+            max_retries=runtime_settings.max_retries,
         )
-        yield
+        app.state.streams = StreamRegistry(
+            processor=processor,
+            backend=app.state.backend,
+            publisher=publisher,
+            semaphore=request_semaphore,
+            chunk_seconds=runtime_settings.default_chunk_duration,
+            frames=runtime_settings.default_frames_per_chunk,
+            alert_sink=AlertSink(
+                runtime_settings.alert_endpoint,
+                runtime_settings.alert_keywords,
+                runtime_settings.alert_cooldown_seconds,
+                runtime_settings.alert_video_path,
+            ),
+        )
+        try:
+            yield
+        finally:
+            await app.state.streams.close()
+            publisher.close()
 
     app = FastAPI(title="VSS RT-VLM OpenAI Compatibility Service", version="0.1.0", lifespan=lifespan)
     app.state.store = store
     app.state.video_processor = processor
+
+    @app.middleware("http")
+    async def request_observability(request: Request, call_next: Any) -> Response:
+        request_id = request.headers.get("x-request-id") or str(uuid4())
+        started = time.perf_counter()
+        response = await call_next(request)
+        elapsed_ms = (time.perf_counter() - started) * 1000
+        response.headers["x-request-id"] = request_id
+        logger.info(
+            "request_id=%s method=%s path=%s status=%s latency_ms=%.1f",
+            request_id,
+            request.method,
+            request.url.path,
+            response.status_code,
+            elapsed_ms,
+        )
+        return response
 
     @app.get("/v1/health/ready")
     async def ready() -> JsonDict:
@@ -160,6 +211,76 @@ def create_app(
     @app.get("/v1/health/live")
     async def live() -> JsonDict:
         return {"status": "live"}
+
+    @app.post("/v1/streams/add")
+    async def add_streams(request: AddStreamsRequest) -> dict[str, Any]:
+        results = []
+        errors = []
+        for stream in request.streams:
+            try:
+                stream_id = await app.state.streams.add(
+                    stream_id=stream.id,
+                    url=stream.liveStreamUrl,
+                    description=stream.description,
+                    sensor_name=stream.sensor_name,
+                )
+                results.append({"id": stream_id, "liveStreamUrl": stream.liveStreamUrl})
+            except ValueError as exc:
+                errors.append({"id": stream.id, "error": str(exc)})
+        return {"results": results, "errors": errors}
+
+    @app.get("/v1/streams/get-stream-info")
+    async def get_stream_info() -> dict[str, Any]:
+        return {"results": await app.state.streams.list()}
+
+    @app.get("/v1/stream/get-stream-info")
+    async def get_stream_info_compat() -> dict[str, Any]:
+        streams = await app.state.streams.list()
+        return {"streams": streams, "stream_count": len(streams)}
+
+    @app.delete("/v1/streams/delete/{stream_id}")
+    async def delete_stream(stream_id: str) -> dict[str, Any]:
+        if not await app.state.streams.remove(stream_id):
+            raise HTTPException(status_code=404, detail=f"No such stream {stream_id}")
+        return {"id": stream_id, "deleted": True}
+
+    @app.delete("/v1/streams/delete-batch")
+    async def delete_stream_batch(payload: Any = Body(...)) -> dict[str, Any]:
+        stream_ids = payload if isinstance(payload, list) else payload.get("stream_ids", payload.get("ids", []))
+        deleted = [str(stream_id) for stream_id in stream_ids if await app.state.streams.remove(str(stream_id))]
+        return {"deleted": deleted, "count": len(deleted)}
+
+    @app.delete("/v1/generate_captions/{stream_id}")
+    async def stop_stream_captions(stream_id: str) -> dict[str, Any]:
+        """Compatibility stop endpoint used by the NVIDIA client."""
+        if not await app.state.streams.remove(stream_id):
+            raise HTTPException(status_code=404, detail=f"No such stream {stream_id}")
+        return {"id": stream_id, "stopped": True}
+
+    @app.post("/v1/stream/add")
+    async def add_stream_compat(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+        value = payload.get("value", payload)
+        url = value.get("camera_url") or value.get("liveStreamUrl")
+        camera_id = value.get("camera_id") or value.get("id")
+        if not url or not camera_id:
+            raise HTTPException(status_code=422, detail="value.camera_url and value.camera_id are required")
+        stream_id = await app.state.streams.add(
+            stream_id=str(camera_id),
+            url=str(url),
+            description=str(value.get("metadata", {}).get("prompt") or value.get("description") or ""),
+            sensor_name=str(value.get("sensor_name") or camera_id),
+        )
+        return {"camera_id": str(camera_id), "asset_id": stream_id, "status": "processing", "inference": True}
+
+    @app.post("/v1/stream/remove")
+    async def remove_stream_compat(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+        value = payload.get("value", payload)
+        stream_id = value.get("camera_id") or value.get("id")
+        if not stream_id:
+            raise HTTPException(status_code=422, detail="value.camera_id is required")
+        if not await app.state.streams.remove(str(stream_id)):
+            raise HTTPException(status_code=404, detail=f"No such stream {stream_id}")
+        return {"camera_id": str(stream_id), "asset_id": str(stream_id), "status": "removed"}
 
     @app.get("/v1/models")
     async def models() -> JsonDict:
@@ -175,6 +296,85 @@ def create_app(
                 }
             ],
         }
+
+    @app.post("/v1/chat/completions")
+    async def chat_completions(payload: dict[str, Any] = Body(...)) -> JsonDict:
+        """Small OpenAI-compatible bridge for Alert's video_url requests.
+
+        The native RT-VLM contract remains file/caption based. This endpoint
+        adapts a single video URL into one caption request for clients that
+        only speak Chat Completions.
+        """
+        messages = payload.get("messages") or []
+        media_url: str | None = None
+        prompt_parts: list[str] = []
+        for message in messages:
+            content = message.get("content", "") if isinstance(message, dict) else ""
+            items = content if isinstance(content, list) else [{"type": "text", "text": content}]
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                if item.get("type") == "text" and item.get("text"):
+                    prompt_parts.append(str(item["text"]))
+                if item.get("type") == "video_url":
+                    value = item.get("video_url", {})
+                    media_url = value.get("url") if isinstance(value, dict) else str(value)
+        if not media_url:
+            raise HTTPException(status_code=422, detail="exactly one video_url is required")
+
+        request_id = uuid4()
+        suffix = os.path.splitext(media_url.split("?", 1)[0])[1] or ".mp4"
+        temp_path: str | None = None
+        try:
+            with tempfile.NamedTemporaryFile(prefix="rtvi-chat-", suffix=suffix, delete=False) as handle:
+                temp_path = handle.name
+
+            def download() -> None:
+                with urlopen(UrlRequest(media_url, headers={"User-Agent": "vss-rt-vlm"}), timeout=60) as response:
+                    with open(temp_path, "wb") as output:
+                        while chunk := response.read(1024 * 1024):
+                            output.write(chunk)
+
+            await asyncio.to_thread(download)
+            metadata = await processor.probe(Path(temp_path))
+            request = GenerateCaptionsRequest(
+                id=request_id,
+                prompt="\n".join(prompt_parts) or "Describe the observed video.",
+                model=str(payload.get("model") or runtime_settings.model),
+                max_tokens=payload.get("max_tokens"),
+            )
+            extracted = await processor.extract_frames(
+                Path(temp_path), VideoChunk(index=0, start=0, end=metadata.duration),
+                _frame_count(request, VideoChunk(index=0, start=0, end=metadata.duration), runtime_settings),
+                None, None,
+            )
+            result, _latency = await app.state.backend.caption(
+                request, extracted.images, start=0, end=metadata.duration,
+            )
+            return {
+                "id": f"chatcmpl-{request_id}",
+                "object": "chat.completion",
+                "created": int(time.time()),
+                "model": request.model,
+                "choices": [
+                    {
+                        "index": 0,
+                        "message": {"role": "assistant", "content": result.content},
+                        "finish_reason": "stop",
+                    }
+                ],
+            }
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.exception("Chat compatibility request failed")
+            raise HTTPException(status_code=502, detail=f"video inference failed: {exc}") from exc
+        finally:
+            if temp_path:
+                try:
+                    os.unlink(temp_path)
+                except OSError:
+                    pass
 
     @app.post("/v1/files", response_model=FileInfo)
     async def upload_file(
@@ -207,6 +407,12 @@ def create_app(
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         except ValueError as exc:
             raise HTTPException(status_code=413, detail=str(exc)) from exc
+        if media_type == "video":
+            try:
+                await processor.probe(asset.path)
+            except Exception as exc:
+                await store.delete(asset.info.id)
+                raise HTTPException(status_code=422, detail=f"Invalid video: {exc}") from exc
         return asset.info
 
     @app.get("/v1/files", response_model=ListFilesResponse)
@@ -225,8 +431,23 @@ def create_app(
     @app.post("/v1/generate_captions")
     async def generate_captions(request: GenerateCaptionsRequest):
         try:
-            asset = await store.get(request.id)
+            # File IDs are UUIDs in the asset store; live stream IDs may be
+            # arbitrary strings and are handled by the compatibility branch.
+            if isinstance(request.id, str):
+                try:
+                    asset_id = UUID(request.id)
+                except ValueError as exc:
+                    raise KeyError(request.id) from exc
+            else:
+                asset_id = request.id
+            asset = await store.get(asset_id)
         except KeyError as exc:
+            # Alert Bridge uses the live stream identifier here, while the
+            # stored-video API normally receives an uploaded asset UUID. Keep
+            # the live-stream control path compatible; the stream worker owns
+            # frame capture and will publish captions independently.
+            if any(item.get("id") == request.id for item in await app.state.streams.list()):
+                return {"status": "started", "id": request.id, "stream_id": request.id}
             raise HTTPException(status_code=404, detail=f"No such resource {request.id}") from exc
         if asset.info.media_type != "video":
             raise HTTPException(status_code=422, detail="The initial implementation supports video assets only")
@@ -252,14 +473,21 @@ def create_app(
             processed = 0
             try:
                 for chunk in chunks:
-                    response = await _process_chunk(
-                        asset=asset,
-                        chunk=chunk,
-                        request=request,
-                        settings=runtime_settings,
-                        video_processor=processor,
-                        backend=app.state.backend,
-                        query_id=query_id,
+                    async with request_semaphore:
+                        response = await _process_chunk(
+                            asset=asset,
+                            chunk=chunk,
+                            request=request,
+                            settings=runtime_settings,
+                            video_processor=processor,
+                            backend=app.state.backend,
+                            query_id=query_id,
+                        )
+                    app.state.kafka_publisher.publish(
+                        stream_id=str(asset.info.id),
+                        chunk=response["chunk_responses"][0],
+                        model=response["model"],
+                        request_id=str(query_id),
                     )
                     processed += 1
                     yield f"data: {json.dumps(response, separators=(',', ':'))}\n\n"
@@ -286,8 +514,8 @@ def create_app(
         responses = []
         try:
             for chunk in chunks:
-                responses.append(
-                    await _process_chunk(
+                async with request_semaphore:
+                    response = await _process_chunk(
                         asset=asset,
                         chunk=chunk,
                         request=request,
@@ -296,6 +524,12 @@ def create_app(
                         backend=app.state.backend,
                         query_id=query_id,
                     )
+                responses.append(response)
+                app.state.kafka_publisher.publish(
+                    stream_id=str(asset.info.id),
+                    chunk=response["chunk_responses"][0],
+                    model=response["model"],
+                    request_id=str(query_id),
                 )
         except OpenAIError as exc:
             logger.warning("OpenAI-compatible VLM request failed: %s", exc)

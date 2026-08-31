@@ -37,7 +37,7 @@ API単体を手動起動する必要はない。
 
 ## 次回のアクションアイテム
 
-1. ローカル設定または動画登録情報を返す`GET /v1/sensor/list`を追加する。
+1. ~~ローカル設定または動画登録情報を返す`GET /v1/sensor/list`を追加する。~~ 完了
 2. `Create Alert Rule`からAlert Bridgeへルールを登録・削除する。
 3. 疑似動画を対象にルールが動作し、Alerts画面へ反映されることを確認する。
 4. raw eventと正式Alertの表示項目マッピングを整理する。
@@ -50,3 +50,18 @@ API単体を手動起動する必要はない。
 - 互換APIの再起動後疎通を確認済み。
 - NGCの`vss-video-analytics-api:3.2.0`取得はAccess Deniedで未使用。
 - 次回はセンサー一覧APIから再開する。
+- `GET /vst/api/v1/sensor/list` -> `200`（`konro_inspection`疑似センサー）を確認済み。
+
+## 2026-08-31 追記
+
+- RT-VLM の `/v1/streams/add` と `/v1/generate_captions` を Alert Bridge 経由で確認し、Alert Rule は HTTP 201、Elasticsearch では `active` になった。
+- コンテナ内の `localhost` はホストの MediaMTX ではないため、RTSP URL の `localhost`/`127.0.0.1` を `host.docker.internal` に変換し、compose に `host-gateway` を追加した。
+- RT-VLM テストは `18 passed`。実際の要約・アラート生成は OpenAI 互換 VLM の応答と Kafka/Alert 設定に依存する。
+- 残課題は、外部 VLM 応答を使ったチャンク処理と、生成されたアラートが UI/Elasticsearch に現れることの確認。
+- 最新イメージで Alert Rule 再登録と `inference_active=true` を確認した。Kafka は未起動のため、caption のKafka配信ログには接続拒否が出る。外部 VLM の実応答待ちで、アラート文書の新規生成は未確認。
+- 疑似RTSPは10秒チャンクで継続取得できている。RT-VLMワーカーは外部OpenAI互換推論の応答待ちとなるため、APIキー・モデル利用可否を確認できるまで新規イベント生成の成否は判定できない。
+- Kafka（`confluentinc/cp-kafka:7.5.0`）を起動し、AlertSinkからのIncident投稿がHTTP 202で受理されることを確認した。`VLM_DETECTED`用の最小Alert設定を登録した結果、`mdx-vlm-incidents-2026-08-31`へ新規文書が保存され、`/video-analytics-api/incidents`の件数が5件になった。
+- 新規文書のVLM検証は、疑似センサーに録画タイムラインがないため`verification-failed`（VST 404）となるが、Alert生成・Elasticsearch保存・UI取得までの経路は動作した。
+- センサー別API（`/alert-bridge/api/v1/realtime/incidents?sensor_id=local-konro-inspection`）でも生成済みAlertを取得でき、疑似RTSP実行中に複数件が蓄積することを確認した。
+- pass-through用の`local-konro-inspection-pt2`で、`video_path=/media/konro_inspection.mp4`、`verificationResponseCode=200`、`verificationResponseStatus=OK`を確認した。VSTタイムラインなしでもローカル動画によるVLM検証とElastic保存が完了する。
+- 検証用ルールは`local-konro-inspection-pt2`の1件に整理した。RT-VLMテスト18件とruffチェックは成功。

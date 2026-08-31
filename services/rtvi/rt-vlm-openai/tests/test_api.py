@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 
+import asyncio
 import base64
 import json
 from pathlib import Path
@@ -8,10 +9,12 @@ from pathlib import Path
 import httpx
 from openai import APIConnectionError
 
+import rt_vlm_openai.app as app_module
 from rt_vlm_openai.app import create_app
 from rt_vlm_openai.config import Settings
 from rt_vlm_openai.models import GenerateCaptionsRequest, OpenAIResult
-from rt_vlm_openai.video import ExtractedFrames, VideoMetadata
+from rt_vlm_openai.streams import StreamRegistry
+from rt_vlm_openai.video import ExtractedFrames, VideoMetadata, VideoProcessor
 
 
 class FakeBackend:
@@ -30,6 +33,14 @@ class FailingBackend:
 
     async def caption(self, request, images, *, start, end):
         raise APIConnectionError(request=httpx.Request("POST", "https://example.invalid/v1/chat/completions"))
+
+
+class FakePublisher:
+    def __init__(self) -> None:
+        self.messages: list[dict] = []
+
+    def publish(self, **message) -> None:
+        self.messages.append(message)
 
 
 class FakeVideoProcessor:
@@ -55,6 +66,7 @@ def settings(tmp_path: Path) -> Settings:
         max_frames_per_chunk=4,
         max_tokens=100,
         request_timeout_seconds=10,
+        max_concurrent_requests=2,
     )
 
 
@@ -152,3 +164,137 @@ async def test_nonstream_openai_failure_returns_json_502(tmp_path: Path) -> None
 
     assert response.status_code == 502
     assert response.json()["detail"].startswith("OpenAI-compatible VLM request failed:")
+
+
+async def test_chat_completions_video_url_bridge(tmp_path: Path, monkeypatch) -> None:
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self, _size):
+            return b"video-bytes" if not getattr(self, "done", False) else b""
+
+    def fake_urlopen(*_args, **_kwargs):
+        response = FakeResponse()
+        response.done = False
+        original_read = response.read
+
+        def read_once(size):
+            if response.done:
+                return b""
+            response.done = True
+            return original_read(size)
+
+        response.read = read_once
+        return response
+
+    monkeypatch.setattr(app_module, "urlopen", fake_urlopen)
+    backend = FakeBackend()
+    app = create_app(settings(tmp_path), backend=backend, video_processor=FakeVideoProcessor())
+    transport = httpx.ASGITransport(app=app)
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(transport=transport, base_url="http://test") as client,
+    ):
+        response = await client.post(
+            "/v1/chat/completions",
+            json={
+                "model": "openai-test-vlm",
+                "messages": [{"role": "user", "content": [
+                    {"type": "video_url", "video_url": {"url": "http://example.test/video.mp4"}},
+                    {"type": "text", "text": "Describe the activity"},
+                ]}],
+            },
+        )
+        missing = await client.post("/v1/chat/completions", json={"messages": [{"role": "user", "content": "text"}]})
+
+    assert response.status_code == 200
+    assert response.json()["choices"][0]["message"]["content"] == "caption 0-25"
+    assert missing.status_code == 422
+
+
+async def test_stream_lifecycle_contract(tmp_path: Path) -> None:
+    app = create_app(settings(tmp_path), backend=FakeBackend(), video_processor=FakeVideoProcessor())
+    transport = httpx.ASGITransport(app=app)
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(transport=transport, base_url="http://test") as client,
+    ):
+        added = await client.post(
+            "/v1/streams/add",
+            json={"streams": [{"id": "camera-1", "liveStreamUrl": "file:///missing.mp4", "description": "test"}]},
+        )
+        assert added.status_code == 200
+        assert added.json()["results"][0]["id"] == "camera-1"
+        listed = await client.get("/v1/streams/get-stream-info")
+        assert listed.json()["results"][0]["id"] == "camera-1"
+        removed = await client.delete("/v1/streams/delete/camera-1")
+        assert removed.json() == {"id": "camera-1", "deleted": True}
+
+
+async def test_nvidia_stream_alias_contract(tmp_path: Path) -> None:
+    app = create_app(settings(tmp_path), backend=FakeBackend(), video_processor=FakeVideoProcessor())
+    transport = httpx.ASGITransport(app=app)
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(transport=transport, base_url="http://test") as client,
+    ):
+        added = await client.post(
+            "/v1/stream/add",
+            json={"key": "sensor", "value": {"camera_id": "camera-compat", "camera_url": "file:///missing.mp4"}},
+        )
+        assert added.status_code == 200
+        assert added.json()["asset_id"] == "camera-compat"
+        listed = await client.get("/v1/stream/get-stream-info")
+        assert listed.json()["stream_count"] == 1
+        stopped = await client.delete("/v1/generate_captions/camera-compat")
+        assert stopped.json() == {"id": "camera-compat", "stopped": True}
+
+
+async def test_file_stream_worker_processes_real_chunk(tmp_path: Path) -> None:
+    source = Path("/home/morioka/temp/Video-to-SOP-Generator/Videos/konro_inspection.mp4")
+    if not source.exists():
+        return
+    publisher = FakePublisher()
+    registry = StreamRegistry(
+        processor=VideoProcessor(),
+        backend=FakeBackend(),
+        publisher=publisher,
+        semaphore=asyncio.Semaphore(1),
+        chunk_seconds=1,
+        frames=2,
+    )
+    stream_id = await registry.add(stream_id="local-file", url=source.as_uri(), description="test", sensor_name="cam")
+    for _ in range(20):
+        if publisher.messages:
+            break
+        await asyncio.sleep(0.5)
+    await registry.remove(stream_id)
+    assert publisher.messages
+    assert publisher.messages[0]["stream_id"] == "local-file"
+
+
+async def test_failed_stream_stays_registered_during_backoff(tmp_path: Path) -> None:
+    registry = StreamRegistry(
+        processor=VideoProcessor(),
+        backend=FakeBackend(),
+        publisher=FakePublisher(),
+        semaphore=asyncio.Semaphore(1),
+        chunk_seconds=1,
+        frames=2,
+    )
+    stream_id = await registry.add(
+        stream_id="disconnected-camera",
+        url="file:///does-not-exist.mp4",
+        description="test",
+        sensor_name="cam",
+    )
+    await asyncio.sleep(0.3)
+    listed = await registry.list()
+    assert listed[0]["id"] == stream_id
+    assert listed[0]["inference_active"] is True
+    await registry.remove(stream_id)
+    assert await registry.list() == []

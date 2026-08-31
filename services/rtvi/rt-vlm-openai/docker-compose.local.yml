@@ -1,0 +1,14 @@
+# Local source-built image. Use this override together with docker-compose.cpu.yml
+# so a stale `:test` image cannot be selected accidentally.
+services:
+  rtvi-vlm-openai:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: vss-rt-vlm-openai:local
+    environment:
+      RTVI_OPENAI_DEFAULT_CHUNK_DURATION: "10"
+      RTVI_OPENAI_DEFAULT_FRAMES_PER_CHUNK: "2"
+      RTVI_OPENAI_ALERT_ENDPOINT: "http://host.docker.internal:9080"
+      RTVI_OPENAI_ALERT_KEYWORDS: "person,stove,burner,battery,unsafe,hazard,danger"
+      RTVI_OPENAI_ALERT_VIDEO_PATH: "/media/konro_inspection.mp4"
