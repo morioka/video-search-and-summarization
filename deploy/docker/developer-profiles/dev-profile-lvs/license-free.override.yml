@@ -5,6 +5,24 @@
 # images (Kafka, Elasticsearch, Redis, PostgreSQL) remain unchanged.
 
 services:
+  vss-vst-storage-local:
+    build:
+      context: ../../services/analytics/vst-storage-local
+    image: ${VST_STORAGE_LOCAL_IMAGE:-vss-vst-storage-local:dev}
+    container_name: vss-vst-storage-local
+    network_mode: host
+    environment:
+      VST_VIDEO_ROOT: /data/videos
+    volumes:
+      - ./data-dir/videos/dev-profile-lvs:/data/videos
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:31001/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
   lvs-server:
     image: ${VSS_LVS_IMAGE:-vss-lvs-local:3.2.4}
 
@@ -20,6 +38,9 @@ services:
       # historically runs on 8001.
       VSS_AGENT_PORT: ${LICENSE_FREE_AGENT_PORT:-8001}
     command: ["serve", "--config_file", "/vss-agent/deploy/docker/developer-profiles/dev-profile-lvs/vss-agent/configs/config.yml", "--host", "0.0.0.0", "--port", "${LICENSE_FREE_AGENT_PORT:-8001}"]
+    depends_on:
+      vss-vst-storage-local:
+        condition: service_healthy
 
   vss-va-mcp:
     image: ${VSS_AGENT_IMAGE:-vss-agent-local:3.2.5}
