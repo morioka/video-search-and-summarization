@@ -32,7 +32,7 @@ def timelines():
 
 @app.get("/vst/api/v1/sensor/streams")
 def streams():
-    return [{"sensorId": key, "streamId": key, "name": value["filename"], "media_type": "video"} for key, value in records.items()]
+    return [{key: [{"name": value["filename"], "sensorId": key, "streamId": key, "media_type": "video"}]} for key, value in records.items()]
 
 @app.get("/vst/api/v1/storage/file/{sensor_id}/url")
 def file_url(sensor_id: str):
