@@ -48,6 +48,12 @@ services:
       # historically runs on 8001.
       VSS_AGENT_PORT: ${LICENSE_FREE_AGENT_PORT:-8001}
     command: ["serve", "--config_file", "/vss-agent/deploy/docker/developer-profiles/dev-profile-lvs/vss-agent/configs/config.yml", "--host", "0.0.0.0", "--port", "${LICENSE_FREE_AGENT_PORT:-8001}"]
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/python3", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 240s
     depends_on:
       vss-vst-storage-local:
         condition: service_healthy
