@@ -23,6 +23,16 @@ services:
       start_period: 5s
     restart: unless-stopped
 
+  rtvi-vlm:
+    image: ${RTVI_VLM_LOCAL_IMAGE:-vss-rt-vlm-openai:local}
+    runtime: ""
+    deploy:
+      resources:
+        reservations:
+          devices: []
+    ports:
+      - "${RTVI_VLM_PORT:-8018}:8000"
+
   lvs-server:
     image: ${VSS_LVS_IMAGE:-vss-lvs-local:3.2.4}
 
@@ -41,6 +51,8 @@ services:
     depends_on:
       vss-vst-storage-local:
         condition: service_healthy
+      rtvi-vlm:
+        condition: service_healthy
 
   vss-va-mcp:
     image: ${VSS_AGENT_IMAGE:-vss-agent-local:3.2.5}
@@ -50,9 +62,6 @@ services:
 
   vss-ui:
     image: ${VSS_UI_IMAGE:-vss-ui-local:3.2.0}
-
-  rtvi-vlm:
-    image: ${RTVI_VLM_IMAGE:-vss-rt-vlm:local}
 
   nvstreamer-lvs:
     image: ${NVSTREAMER_IMAGE:-vss-nvstreamer-local:3.2.1}
