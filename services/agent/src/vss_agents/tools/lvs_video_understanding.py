@@ -390,8 +390,21 @@ async def lvs_video_understanding(
         nat_context = Context.get()
         user_input_manager = nat_context.user_interaction_manager
 
+        # OpenAI-compatible API calls have no interactive UI callback.  In that
+        # mode the caller must be able to use the configured defaults instead
+        # of failing before the LVS request is sent.
+        if user_input_manager is None:
+            logger.info("No human prompt callback; using configured LVS defaults")
+            return ""
+
         human_prompt = HumanPromptText(text=prompt_text, required=required, placeholder=placeholder)
-        response: InteractionResponse = await user_input_manager.prompt_user_input(human_prompt)
+        try:
+            response: InteractionResponse = await user_input_manager.prompt_user_input(human_prompt)
+        except RuntimeError as exc:
+            if "No human prompt callback" not in str(exc):
+                raise
+            logger.info("Human prompt callback unavailable; using configured LVS defaults")
+            return ""
         response_text: str = str(response.content.text).strip()
 
         return response_text

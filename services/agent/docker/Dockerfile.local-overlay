@@ -6,4 +6,5 @@ USER root
 COPY services/agent/src/vss_agents/register_knowledge_layers.py /vss-agent/.venv/lib/python3.13/site-packages/vss_agents/register_knowledge_layers.py
 COPY services/agent/src/vss_agents/tools/vst/utils.py /vss-agent/.venv/lib/python3.13/site-packages/vss_agents/tools/vst/utils.py
 COPY services/agent/src/vss_agents/api/video_ingest.py /vss-agent/.venv/lib/python3.13/site-packages/vss_agents/api/video_ingest.py
+COPY services/agent/src/vss_agents/tools/lvs_video_understanding.py /vss-agent/.venv/lib/python3.13/site-packages/vss_agents/tools/lvs_video_understanding.py
 USER 1000:1000

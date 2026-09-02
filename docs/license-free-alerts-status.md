@@ -86,6 +86,7 @@ API単体を手動起動する必要はない。
 - 2026-09-02追記2: 公開Kafkaイメージ（`confluentinc/cp-kafka:8.2.0`）とトピック初期化を起動し、RT-VLMをプロファイルの`HOST_IP:9092`へ接続。実動画のcomplete API実行後、`default_<sensor>`インデックスに`raw_events` caption文書がLogstash経由で保存されることを確認した。ローカルRT-VLM composeの既定値と起動スクリプトにもKafka起動を反映し、再現可能な主要経路になった。
 - 2026-09-02追記3: 既存のMediaMTXへ`konro_inspection.mp4`を疑似RTSP配信し、RT-VLMの`/v1/streams/add`へ`local-konro-inspection-pt2`を登録。キーワード一致によりAlert BridgeへHTTP 202で通知され、VLM検証後に`mdx-vlm-incidents-2026-09-02`へ正式incidentが保存された。Alerts APIでも同sensor_idに対しraw eventとformal incident（`isRawEvent=false`）の両方を取得できることを確認。検証後、ストリーム削除とMediaMTX停止を実施した。
 - 2026-09-02追記4: Alert Bridge専用Kafkaとの9092番ポート競合を避ける`services/alert/docker-compose.external-kafka.yml`を追加。既存のプロファイルKafkaを再利用し、Alert Bridge/Redisをライセンスフリー起動スクリプトから冪等に起動できるようにした。
+- 2026-09-02追記5: 保存動画要約の非対話APIでHITL callbackが未登録でも設定済みの既定scenario/eventsを使えるフォールバックをAgentへ追加。ローカル`vss-lvs`は公開依存（`uvicorn`、`sse-starlette`、`json_repair`等）の欠落が段階的に検出されるため、現時点では起動スクリプトの主要経路に含めず停止している。
 
 ## 再開コマンド（2026-08-31）
 
