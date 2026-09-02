@@ -1315,7 +1315,7 @@ async def video_report_gen(config: VideoReportGenConfig, builder: Builder) -> As
 
     vlm_model_name = ""
     try:
-        vu_config = await builder.get_function_config(config.video_understanding_tool)
+        vu_config = builder.get_function_config(config.video_understanding_tool)
         base_vlm = await builder.get_llm(vu_config.vlm_name, wrapper_type=LLMFrameworkEnum.LANGCHAIN)
         vlm_model_name = getattr(base_vlm, "model_name", "") or getattr(base_vlm, "model", "")
         logger.info("Report generation VLM model for audio suffix guard: %r", vlm_model_name)
