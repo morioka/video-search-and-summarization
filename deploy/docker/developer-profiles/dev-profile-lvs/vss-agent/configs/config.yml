@@ -96,6 +96,8 @@ functions:
   lvs_video_understanding:
     _type: lvs_video_understanding
     lvs_backend_url: ${LVS_BACKEND_URL}
+    # Use the OpenAI-compatible video tool when the optional LVS service is unavailable.
+    fallback_video_understanding_tool: video_understanding
     model: ${VLM_NAME}
     video_url_tool: vst_video_clip
     vst_internal_url: ${VST_INTERNAL_URL}
