@@ -224,6 +224,11 @@ class LVSVideoUnderstandingConfig(FunctionBaseConfig, name="lvs_video_understand
         "Used because LVS runs inside the deployment and fetches VST media directly.",
     )
 
+    fallback_video_understanding_tool: str | None = Field(
+        default="video_understanding",
+        description="Optional direct VLM tool used when the LVS backend is unavailable.",
+    )
+
     model_config = ConfigDict(extra="forbid")
 
 
@@ -762,6 +767,40 @@ async def lvs_video_understanding(
                 return result
 
         except aiohttp.ClientError as e:
+            logger.warning("LVS backend unavailable (%s); trying direct VLM fallback", e)
+            if config.fallback_video_understanding_tool:
+                try:
+                    fallback_tool = await builder.get_tool(
+                        config.fallback_video_understanding_tool,
+                        wrapper_type=LLMFrameworkEnum.LANGCHAIN,
+                    )
+                    prompt = (
+                        f"Scenario: {scenario}. Detect and describe these events: {', '.join(events)}. "
+                        "Summarize the visible activity with timestamps."
+                    )
+                    fallback_result = await fallback_tool.ainvoke(
+                        {
+                            "sensor_id": sensor_id,
+                            "start_timestamp": start_time,
+                            "end_timestamp": end_time,
+                            "user_prompt": prompt,
+                            "vlm_reasoning": False,
+                        }
+                    )
+                    video_summary = str(fallback_result).strip()
+                    return {
+                        "sensor_id": sensor_id,
+                        "video_summary": video_summary,
+                        "events": [],
+                        "hitl_prompts": {
+                            "scenario": scenario,
+                            "events": events,
+                            "objects_of_interest": objects_of_interest,
+                        },
+                        "lvs_backend_response": {"fallback": "video_understanding"},
+                    }
+                except Exception as fallback_error:
+                    logger.error("Direct VLM fallback failed: %s", fallback_error)
             logger.error(f"LVS service connection error: {e}")
             raise RuntimeError(f"Failed to connect to LVS service: {e}") from e
         except Exception as e:
