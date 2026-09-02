@@ -281,6 +281,10 @@ functions:
     _type: knowledge_retrieval
     backend: es_caption
     top_k: 5
+    # Optional second pass over retrieved captions. Disabled by default to
+    # preserve the cited-excerpt response and avoid an extra LLM request.
+    generate_summary: ${LVS_CAPTION_GENERATE_SUMMARY:-false}
+    summary_model: ${LVS_CAPTION_SUMMARY_MODEL:-${LLM_MODEL_TYPE:-nim}_llm}
     backend_config:
       elasticsearch_url: ${ELASTIC_SEARCH_ENDPOINT:-http://${HOST_IP}:9200}
       index: default_*                                  # per-stream `default_<stream_id>` indices
@@ -316,6 +320,7 @@ llms:
   openai_vlm:
     _type: openai
     model_name: ${VLM_NAME}
+    base_url: ${VLM_BASE_URL}/v1
     temperature: 0.0
     max_tokens: 4096
 

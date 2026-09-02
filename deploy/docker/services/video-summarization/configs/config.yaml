@@ -63,7 +63,7 @@ tools:
       max_tokens: 10240
       temperature: 0.2
       top_p: 0.7
-      api_key: !ENV ${NVIDIA_API_KEY}
+      api_key: !ENV ${LVS_LLM_API_KEY}
 
   nvidia_embedding:
     type: embedding
@@ -71,7 +71,7 @@ tools:
       enable: !ENV ${LVS_EMB_ENABLE:false}
       model: !ENV ${LVS_EMB_MODEL_NAME}
       base_url: !ENV ${LVS_EMB_BASE_URL}
-      api_key: !ENV ${NVIDIA_API_KEY}
+      api_key: !ENV ${LVS_EMB_API_KEY}
 
 functions:
   summarization:

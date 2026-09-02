@@ -538,7 +538,11 @@ class ViaStreamHandler:
         logger.info("Initialized VIA Stream Handler")
 
     def _create_ctx_mgr_pool(self, config):
-        from vss_ctx_rag.context_manager import ContextManager
+        use_simple = os.environ.get("LVS_RAG_BACKEND", "").lower() == "simple"
+        if use_simple:
+            from simple_rag import SimpleRagAdapter
+        else:
+            from vss_ctx_rag.context_manager import ContextManager
 
         with self._lock:
             # Create ctx mgr pool only if the pool is empty
@@ -556,9 +560,12 @@ class ViaStreamHandler:
                 f" adding new processes from index {self.num_ctx_mgr}"
             )
             for i in range(self.NUM_CA_RAG_PROCESSES_LAUNCH):
-                self._ctx_mgr_pool.append(
-                    RagAdapter(ContextManager(config=config, process_index=self.num_ctx_mgr))
-                )
+                if use_simple:
+                    self._ctx_mgr_pool.append(SimpleRagAdapter(process_index=self.num_ctx_mgr))
+                else:
+                    self._ctx_mgr_pool.append(
+                        RagAdapter(ContextManager(config=config, process_index=self.num_ctx_mgr))
+                    )
                 os.environ["CA_RAG_ENABLE_WARMUP"] = "false"
                 self.num_ctx_mgr = self.num_ctx_mgr + 1
                 if self.num_ctx_mgr >= self.MAX_STREAMS:
@@ -566,7 +573,11 @@ class ViaStreamHandler:
 
     def _create_qa_ctx_mgr_pool(self, config):
         """Create a pool of ContextManagers configured only for QA (ingestion + retriever)."""
-        from vss_ctx_rag.context_manager import ContextManager
+        use_simple = os.environ.get("LVS_RAG_BACKEND", "").lower() == "simple"
+        if use_simple:
+            from simple_rag import SimpleRagAdapter
+        else:
+            from vss_ctx_rag.context_manager import ContextManager
 
         with self._lock:
             if len(self._qa_ctx_mgr_pool) > 0:
@@ -583,9 +594,14 @@ class ViaStreamHandler:
                 self.num_qa_ctx_mgr,
             )
             for i in range(self.NUM_CA_RAG_PROCESSES_LAUNCH):
-                self._qa_ctx_mgr_pool.append(
-                    RagAdapter(ContextManager(config=qa_config, process_index=self.num_qa_ctx_mgr))
-                )
+                if use_simple:
+                    self._qa_ctx_mgr_pool.append(
+                        SimpleRagAdapter(process_index=self.num_qa_ctx_mgr)
+                    )
+                else:
+                    self._qa_ctx_mgr_pool.append(
+                        RagAdapter(ContextManager(config=qa_config, process_index=self.num_qa_ctx_mgr))
+                    )
                 os.environ["CA_RAG_ENABLE_WARMUP"] = "false"
                 self.num_qa_ctx_mgr += 1
                 if self.num_qa_ctx_mgr >= self.MAX_STREAMS:

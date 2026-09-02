@@ -191,6 +191,24 @@ class TestGetNameToStreamIdMap:
 
         assert result == {}
 
+    @pytest.mark.asyncio
+    async def test_empty_response_falls_back_to_timeline_ids(self):
+        """Use timeline UUIDs when the stream inventory is temporarily empty."""
+        streams_response = create_mock_response(200, "[]")
+        timelines_response = create_mock_response(200, json.dumps(MOCK_TIMELINES_RESPONSE))
+        mock_session = MagicMock()
+        mock_session.get = MagicMock(side_effect=[streams_response, timelines_response])
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+
+        with (
+            patch("vss_agents.tools.vst.utils.aiohttp.ClientSession", return_value=mock_session),
+            patch("vss_agents.tools.vst.utils.create_retry_strategy", side_effect=no_retry_generator),
+        ):
+            result = await get_name_to_stream_id_map("http://localhost:30888")
+
+        assert result["24c5a7d6-39ce-442e-abf0-430f036b7a3d"] == "24c5a7d6-39ce-442e-abf0-430f036b7a3d"
+
 
 class TestGetTimeline:
     """Test get_timeline function."""

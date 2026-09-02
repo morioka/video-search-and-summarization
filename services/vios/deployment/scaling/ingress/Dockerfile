@@ -18,8 +18,8 @@ FROM ubuntu:24.04
 # Install nginx and dependencies
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-         nginx=1.24.0-2ubuntu7.8 \
-         nginx-common=1.24.0-2ubuntu7.8 \
+         nginx=1.24.0-2ubuntu7.17 \
+         nginx-common=1.24.0-2ubuntu7.17 \
          ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -r nginx \
@@ -60,4 +60,3 @@ EXPOSE 30888
 
 # Start Nginx with config dump to help debugging on startup
 CMD ["sh", "-c", "cat /etc/nginx/nginx.conf && nginx -g 'daemon off;'"]
-

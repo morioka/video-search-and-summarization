@@ -22,7 +22,17 @@ def load_config():
     # Use the CONFIG_PATH environment variable, default to "config.yaml"
     config_file = os.getenv("CONFIG_PATH", "config.yaml")
     with open(config_file, 'r') as file:
-        return yaml.safe_load(file)
+        config = yaml.safe_load(file) or {}
+    sink_type = os.getenv("ALERT_VLM_ENHANCED_SINK_TYPE")
+    if sink_type:
+        sink = config.setdefault("vlm_enhanced_sink", {})
+        sink["type"] = sink_type
+        if sink_type.lower() == "kafka":
+            incident = sink.setdefault("incident", {}).setdefault("kafka", {})
+            alert = sink.setdefault("alert", {}).setdefault("kafka", {})
+            incident["topic"] = os.getenv("ALERT_VLM_INCIDENT_TOPIC", incident.get("topic", "mdx-vlm-incidents"))
+            alert["topic"] = os.getenv("ALERT_VLM_ALERT_TOPIC", alert.get("topic", "mdx-vlm-alerts"))
+    return config
 
 def load_config_path():
     # Use the CONFIG_PATH environment variable, default to "config.yaml"

@@ -77,4 +77,21 @@ echo "Starting local Storage and Agent..."
 wait_for_http "http://127.0.0.1:8001/health" "VSS Agent"
 wait_for_http "http://127.0.0.1:7777/video-analytics-api/incidents?maxResultSize=1" "Alerts API"
 
+echo "Starting Alert Bridge with the profile Kafka..."
+if ! docker start alert-bridge-redis >/dev/null 2>&1; then
+  docker compose \
+    --env-file "$ENV_FILE" \
+    -f "$ROOT_DIR/services/alert/docker-compose.local.yml" \
+    -f "$ROOT_DIR/services/alert/docker-compose.external-kafka.yml" \
+    up -d alert-bridge-redis
+fi
+if ! docker start alert-bridge >/dev/null 2>&1; then
+  docker compose \
+    --env-file "$ENV_FILE" \
+    -f "$ROOT_DIR/services/alert/docker-compose.local.yml" \
+    -f "$ROOT_DIR/services/alert/docker-compose.external-kafka.yml" \
+    up -d alert-bridge
+fi
+wait_for_http "http://127.0.0.1:9080/health" "Alert Bridge"
+
 echo "Local license-free LVS services started."

@@ -190,18 +190,18 @@ class TestEsCaptionAdapter:
         assert body["size"] == 5
         assert self._must(body) == [{"match": {"text": "graffiti on bridge"}}]
         # Default doc_type + collection->uuid lifted in automatically.
-        assert {"term": {"metadata.content_metadata.uuid": "stream-A"}} in self._filters(body)
-        assert {"term": {"metadata.content_metadata.doc_type": "raw_events"}} in self._filters(body)
+        assert {"term": {"metadata.content_metadata.uuid.keyword": "stream-A"}} in self._filters(body)
+        assert {"term": {"metadata.content_metadata.doc_type.keyword": "raw_events"}} in self._filters(body)
 
     def test_doc_type_override_via_filters(self, adapter):
         body = adapter._build_query("q", "s", top_k=5, filters={"doc_type": "aggregated_summary"})
         # Override wins, default is dropped.
         doc_terms = [f for f in self._filters(body) if "metadata.content_metadata.doc_type" in str(f)]
-        assert doc_terms == [{"term": {"metadata.content_metadata.doc_type": "aggregated_summary"}}]
+        assert doc_terms == [{"term": {"metadata.content_metadata.doc_type.keyword": "aggregated_summary"}}]
 
     def test_camera_id_lifted_to_term_filter(self, adapter):
         body = adapter._build_query("q", "s", top_k=5, filters={"camera_id": "cam-A"})
-        assert {"term": {"metadata.content_metadata.camera_id": "cam-A"}} in self._filters(body)
+        assert {"term": {"metadata.content_metadata.camera_id.keyword": "cam-A"}} in self._filters(body)
 
     def test_time_range_overlap_bounds_in_seconds(self, adapter):
         body = adapter._build_query("q", "s", top_k=5, filters={"time_range": {"start": 5, "end": 30}})

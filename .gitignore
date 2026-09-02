@@ -20,3 +20,7 @@ deploy/docker/rag-secret.override.yml
 *.log
 *checkpoint.*
 .orchestrator-artifacts/*
+
+# Local Elasticsearch and generated capacity reports.
+deploy/docker/data-dir/
+reports/

@@ -24,6 +24,10 @@ services:
     entrypoint: ["/bin/bash", "-c", "if [ \"${VST_INSTALL_ADDITIONAL_PACKAGES}\" = \"true\" ]; then /home/vst/vst_release/tools/user_additional_install.sh; fi && exec /home/vst/vst_release/launch_vst"]
     environment:
       - VST_INSTALL_ADDITIONAL_PACKAGES=${VST_INSTALL_ADDITIONAL_PACKAGES}
+      # Keep the image's DeepStream plugins, but also expose Ubuntu's system
+      # libav/GStreamer plugins used for storage media probing.
+      - LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu:/home/vst/vst_release/prebuilts/x86_64/deepstream:/home/vst/vst_release/prebuilts/x86_64/gst-plugins:/home/vst/vst_release/prebuilts/x86_64:/home/vst/vst_release/prebuilts/x86_64/aws
+      - GST_PLUGIN_PATH=/usr/lib/x86_64-linux-gnu/gstreamer-1.0:/home/vst/vst_release/prebuilts/x86_64/deepstream/gst-plugins:/home/vst/vst_release/prebuilts/x86_64/gst-plugins
       - CONTAINER_NAME=vss-vios-streamprocessing
       - ADAPTOR=${VST_ADAPTOR:-vst_rtsp}
       - HTTP_PORT=${STREAM_PROCESSOR_HTTP_PORT:-30001}
@@ -73,6 +77,8 @@ services:
     entrypoint: ["/bin/bash", "-c", "if [ \"${VST_INSTALL_ADDITIONAL_PACKAGES}\" = \"true\" ]; then /home/vst/vst_release/tools/user_additional_install.sh; fi && exec /home/vst/vst_release/launch_vst"]
     environment:
       - VST_INSTALL_ADDITIONAL_PACKAGES=${VST_INSTALL_ADDITIONAL_PACKAGES}
+      - LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu:/home/vst/vst_release/prebuilts/x86_64/deepstream:/home/vst/vst_release/prebuilts/x86_64/gst-plugins:/home/vst/vst_release/prebuilts/x86_64:/home/vst/vst_release/prebuilts/x86_64/aws
+      - GST_PLUGIN_PATH=/usr/lib/x86_64-linux-gnu/gstreamer-1.0:/home/vst/vst_release/prebuilts/x86_64/deepstream/gst-plugins:/home/vst/vst_release/prebuilts/x86_64/gst-plugins
       - CONTAINER_NAME=vss-vios-streamprocessing
       - ADAPTOR=${VST_ADAPTOR:-vst_rtsp}
       - HTTP_PORT=${STREAM_PROCESSOR_HTTP_PORT:-30001}
@@ -123,6 +129,8 @@ services:
     entrypoint: ["/bin/bash", "-c", "if [ \"${VST_INSTALL_ADDITIONAL_PACKAGES}\" = \"true\" ]; then /home/vst/vst_release/tools/user_additional_install.sh; fi && exec /home/vst/vst_release/launch_vst"]
     environment:
       - VST_INSTALL_ADDITIONAL_PACKAGES=${VST_INSTALL_ADDITIONAL_PACKAGES}
+      - LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu:/home/vst/vst_release/prebuilts/x86_64/deepstream:/home/vst/vst_release/prebuilts/x86_64/gst-plugins:/home/vst/vst_release/prebuilts/x86_64:/home/vst/vst_release/prebuilts/x86_64/aws
+      - GST_PLUGIN_PATH=/usr/lib/x86_64-linux-gnu/gstreamer-1.0:/home/vst/vst_release/prebuilts/x86_64/deepstream/gst-plugins:/home/vst/vst_release/prebuilts/x86_64/gst-plugins
       - CONTAINER_NAME=vss-vios-streamprocessing
       - ADAPTOR=${VST_ADAPTOR:-vst_rtsp}
       - HTTP_PORT=${STREAM_PROCESSOR_HTTP_PORT:-30001}
@@ -175,6 +183,8 @@ services:
     entrypoint: ["/bin/bash", "-c", "if [ \"${VST_INSTALL_ADDITIONAL_PACKAGES}\" = \"true\" ]; then /home/vst/vst_release/tools/user_additional_install.sh; fi && exec /home/vst/vst_release/launch_vst"]
     environment:
       - VST_INSTALL_ADDITIONAL_PACKAGES=${VST_INSTALL_ADDITIONAL_PACKAGES}
+      - LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu:/home/vst/vst_release/prebuilts/x86_64/deepstream:/home/vst/vst_release/prebuilts/x86_64/gst-plugins:/home/vst/vst_release/prebuilts/x86_64:/home/vst/vst_release/prebuilts/x86_64/aws
+      - GST_PLUGIN_PATH=/usr/lib/x86_64-linux-gnu/gstreamer-1.0:/home/vst/vst_release/prebuilts/x86_64/deepstream/gst-plugins:/home/vst/vst_release/prebuilts/x86_64/gst-plugins
       - CONTAINER_NAME=vss-vios-streamprocessing
       - ADAPTOR=${VST_ADAPTOR:-vst_rtsp}
       - HTTP_PORT=${STREAM_PROCESSOR_HTTP_PORT:-30001}

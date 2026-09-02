@@ -65,11 +65,15 @@ services:
       ARTIFACTORY_TOKEN: ${ARTIFACTORY_TOKEN:-}
       NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      LVS_LLM_API_KEY: ${LVS_LLM_API_KEY:-${OPENAI_API_KEY:-${NVIDIA_API_KEY:-}}}
+      LVS_EMB_API_KEY: ${LVS_EMB_API_KEY:-${OPENAI_API_KEY:-${NVIDIA_API_KEY:-}}}
       BACKEND_PORT: '38111'
       FRONTEND_PORT: '38123'
       LVS_MCP_PORT: '38112'
       CA_RAG_CONFIG: /opt/nvidia/via/config/default_config.yaml
       DISABLE_CA_RAG: ${DISABLE_CA_RAG:-false}
+      # Set to simple for a dependency-free saved-video smoke run.
+      LVS_RAG_BACKEND: ${LVS_RAG_BACKEND:-ctx-rag}
       ENABLE_AUDIO: ${ENABLE_AUDIO:-false}
       ENABLE_DENSE_CAPTION: ${ENABLE_DENSE_CAPTION:-}
       ENABLE_VIA_HEALTH_EVAL: ${ENABLE_VIA_HEALTH_EVAL:-false}

@@ -1,0 +1,4 @@
+# Reuse the profile's host Kafka instead of starting a second broker on 9092.
+services:
+  alert-bridge:
+    depends_on: !reset []

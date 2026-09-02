@@ -43,6 +43,13 @@ services:
       VIA_VLM_ENDPOINT: "${RTVI_VLM_ENDPOINT:-}"
       VIA_VLM_API_KEY: "${RTVI_VLM_API_KEY:-${NGC_CLI_API_KEY:-}}"
       RTVI_OPENAI_ASSET_DIR: "${RTVI_OPENAI_ASSET_DIR:-/tmp/rt-vlm-openai-assets}"
+      RTVI_OPENAI_MAX_CONCURRENT_REQUESTS: "${RTVI_OPENAI_MAX_CONCURRENT_REQUESTS:-2}"
+      RTVI_OPENAI_MAX_RETRIES: "${RTVI_OPENAI_MAX_RETRIES:-3}"
+      RTVI_OPENAI_KAFKA_BOOTSTRAP_SERVERS: "${RTVI_OPENAI_KAFKA_BOOTSTRAP_SERVERS:-}"
+      RTVI_OPENAI_KAFKA_TOPIC: "${RTVI_OPENAI_KAFKA_TOPIC:-mdx-vlm-captions}"
+      RTVI_OPENAI_ALERT_ENDPOINT: "${RTVI_OPENAI_ALERT_ENDPOINT:-}"
+      RTVI_OPENAI_ALERT_KEYWORDS: "${RTVI_OPENAI_ALERT_KEYWORDS:-}"
+      RTVI_OPENAI_ALERT_COOLDOWN_SECONDS: "${RTVI_OPENAI_ALERT_COOLDOWN_SECONDS:-30}"
       VLM_BATCH_SIZE: "${RTVI_VLM_BATCH_SIZE:-}"
       VLM_INPUT_WIDTH: "${RTVI_VLM_INPUT_WIDTH:-}"
       VLM_INPUT_HEIGHT: "${RTVI_VLM_INPUT_HEIGHT:-}"
@@ -142,6 +149,10 @@ services:
       # Override path for vLLM patch script.
       VLLM_ROOT: "${VLLM_ROOT:-/usr/local/lib/python3.12/dist-packages/vllm}"
     volumes:
+      # Persist uploaded media across RT-VLM container recreation. When
+      # RTVI_OPENAI_ASSET_DIR is overridden, mount the corresponding host path
+      # separately through the existing deployment configuration.
+      - "${RTVI_OPENAI_ASSET_VOLUME:-rtvi-openai-assets}:/tmp/rt-vlm-openai-assets"
       - "${ASSET_STORAGE_DIR:-/dummy}${ASSET_STORAGE_DIR:+:/tmp/assets}"
       - "${RTVI_VLM_HF_CACHE:-rtvi-hf-cache}:/tmp/huggingface"
       - ${VSS_DATA_DIR}/data_log/vst/clip_storage:/home/vst/vst_release/streamer_videos
@@ -201,5 +212,6 @@ services:
         required: false
 
 volumes:
+  rtvi-openai-assets:
   rtvi-hf-cache:
   rtvi-ngc-model-cache:

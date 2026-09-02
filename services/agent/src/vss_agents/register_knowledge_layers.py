@@ -34,6 +34,7 @@ from pydantic import Field
 from lib.knowledge import RetrievalResult
 from lib.knowledge import get_retriever
 from vss_agents.tools.lvs_media_state import configured_media
+from vss_agents.tools.vst.utils import get_name_to_stream_id_map
 
 logger = logging.getLogger(__name__)
 
@@ -161,6 +162,16 @@ async def knowledge_retrieval(config: KnowledgeRetrievalConfig, builder: Builder
             cached = configured_media("stream", target_collection)
             if cached is not None:
                 target_collection = cached.media_id
+            else:
+                # Resolve a VST friendly video/stream name for callers that
+                # did not first run lvs_config_media. ES partitions captions
+                # by the VST stream UUID, while users naturally provide the
+                # filename shown by vst_video_list.
+                try:
+                    stream_map = await get_name_to_stream_id_map()
+                    target_collection = stream_map.get(target_collection, target_collection)
+                except Exception as exc:
+                    logger.warning("VST name-to-stream resolution failed: %s", exc)
 
         top_k = tool_input.top_k or config.top_k
 

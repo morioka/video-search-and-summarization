@@ -18,6 +18,7 @@ request "Elasticsearch" "${ELASTICSEARCH_URL:-http://127.0.0.1:9200}/_cluster/he
 request "Caption indices" "${ELASTICSEARCH_URL:-http://127.0.0.1:9200}/_count?index=default_*"
 request "Sensor list" "${ALERTS_API_URL:-http://127.0.0.1:7777/video-analytics-api}/v1/sensor/list"
 request "Alerts incidents" "${ALERTS_API_URL:-http://127.0.0.1:7777/video-analytics-api}/incidents?maxResultSize=1"
+request "Alert Bridge" "${ALERT_BRIDGE_URL:-http://127.0.0.1:9080}/health"
 
 vlm_images="$(docker ps --format '{{.Image}}' | grep -Ei 'rt[-_]vlm|vlm.*nvidia|nvcr.io/.*/vlm' || true)"
 if printf '%s\n' "$vlm_images" | grep -Eiq 'nvcr.io|nvidia.*vlm|vss-rt-vlm:3'; then

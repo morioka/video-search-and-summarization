@@ -67,6 +67,12 @@ backend bk_video_analytics_api_strip
     http-request replace-path ^/video-analytics-api$ /
     server s1 "${HOST_IP}:${VIDEO_ANALYTICS_API_PORT}" check
 
+# The license-free analytics replacement also supplies the sensor list used by
+# the Alerts rule editor when VST is not deployed.
+backend bk_sensor_list_compat
+    http-request replace-path ^/vst/api/v1/sensor/list$ /v1/sensor/list
+    server s1 "${HOST_IP}:${VIDEO_ANALYTICS_API_PORT}" check
+
 backend bk_alert_bridge_strip
     http-request replace-path ^/alert-bridge/(.*) /\1
     http-request replace-path ^/alert-bridge$ /
@@ -120,6 +126,9 @@ frontend fe_http
     acl p_video_analytics path /video-analytics-api
     acl p_video_analytics path_beg /video-analytics-api/
     use_backend bk_video_analytics_api_strip if h_main p_video_analytics
+
+    acl p_sensor_list path /vst/api/v1/sensor/list
+    use_backend bk_sensor_list_compat if h_main p_sensor_list
 
     acl p_alert_bridge path /alert-bridge
     acl p_alert_bridge path_beg /alert-bridge/

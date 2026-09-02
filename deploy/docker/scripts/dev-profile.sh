@@ -34,6 +34,7 @@ ngc_cli_api_key="${NGC_CLI_API_KEY:-}"
 nvidia_api_key="${NVIDIA_API_KEY:-}"
 openai_api_key="${OPENAI_API_KEY:-}"
 dry_run="false"
+skip_ngc_login="${SKIP_NGC_LOGIN:-false}"
 
 # NIM-related defaults
 # LLM configuration
@@ -379,7 +380,8 @@ function usage() {
   echo "  desired-state                    up or down"
   echo ""
   echo "NOTE: The following are read from the environment (no CLI options):"
-  echo "  • NGC_CLI_API_KEY     — required for 'up'"
+  echo "  • NGC_CLI_API_KEY     — required for 'up' unless SKIP_NGC_LOGIN=true"
+  echo "  • SKIP_NGC_LOGIN      — optional; set true when all images are local"
   echo "  • NVIDIA_API_KEY      — optional; used for accessing remote LLM/VLM endpoints"
   echo "  • OPENAI_API_KEY      — optional; used for accessing remote LLM/VLM endpoints"
   echo "  • LLM_ENDPOINT_URL    — optional; required when --use-remote-llm is passed (both must be set)"
@@ -473,7 +475,7 @@ function validate_args() {
   _args=("${@}")
   _all_good=0
 
-  _valid_args=$(getopt -q -o p:H:i:e:m:dh --long profile:,hardware-profile:,host-ip:,external-ip:,mode:,llm-device-id:,vlm-device-id:,use-remote-llm,use-remote-vlm,llm:,vlm:,llm-model-type:,vlm-model-type:,llm-env-file:,vlm-env-file:,dry-run,help -- "${_args[@]}")
+  _valid_args=$(getopt -q -o p:H:i:e:m:dh --long profile:,hardware-profile:,host-ip:,external-ip:,mode:,llm-device-id:,vlm-device-id:,use-remote-llm,use-remote-vlm,llm:,vlm:,llm-model-type:,vlm-model-type:,llm-env-file:,vlm-env-file:,dry-run,skip-ngc-login,help -- "${_args[@]}")
   if [[ $? -ne 0 ]]; then
     echo "[ERROR] Invalid usage: $(mask_external_ip_args "${_args[@]}")"
     ((_all_good++))
@@ -514,7 +516,7 @@ function process_args() {
   _args=("${@}")
   _all_good=0
 
-  _valid_args=$(getopt -q -o p:H:i:e:m:dh --long profile:,hardware-profile:,host-ip:,external-ip:,mode:,llm-device-id:,vlm-device-id:,use-remote-llm,use-remote-vlm,llm:,vlm:,llm-model-type:,vlm-model-type:,llm-env-file:,vlm-env-file:,dry-run,help -- "${_args[@]}")
+  _valid_args=$(getopt -q -o p:H:i:e:m:dh --long profile:,hardware-profile:,host-ip:,external-ip:,mode:,llm-device-id:,vlm-device-id:,use-remote-llm,use-remote-vlm,llm:,vlm:,llm-model-type:,vlm-model-type:,llm-env-file:,vlm-env-file:,dry-run,skip-ngc-login,help -- "${_args[@]}")
   eval set -- "${_valid_args}"
 
   # Parse options
@@ -613,6 +615,11 @@ function process_args() {
         options_provided+=("dry-run")
         shift
         ;;
+      --skip-ngc-login)
+        skip_ngc_login="true"
+        options_provided+=("skip-ngc-login")
+        shift
+        ;;
       -h | --help)
         shift
         ;;
@@ -643,7 +650,7 @@ function process_args() {
       echo "[ERROR] --profile is required for desired-state 'up'"
       ((_all_good++))
     fi
-    if [[ -z "${ngc_cli_api_key}" ]]; then
+    if [[ "${skip_ngc_login}" != "true" && -z "${ngc_cli_api_key}" ]]; then
       echo "[ERROR] NGC_CLI_API_KEY is required for desired-state 'up'"
       ((_all_good++))
     fi
@@ -1577,11 +1584,14 @@ function state_up() {
     set_vss_linux_kernel_settings
   fi
 
-  # Docker login to nvcr.io
-  echo "[INFO] Logging into nvcr.io..."
-  if [[ "${dry_run}" == "true" ]]; then
+  # Docker login to nvcr.io (not needed when every image is local).
+  if [[ "${skip_ngc_login}" == "true" ]]; then
+    echo "[INFO] Skipping nvcr.io login (local images mode)"
+  elif [[ "${dry_run}" == "true" ]]; then
+    echo "[INFO] Logging into nvcr.io..."
     echo "[DRY-RUN] docker login --username '\$oauthtoken' --password <ngc-cli-api-key> nvcr.io"
   else
+    echo "[INFO] Logging into nvcr.io..."
     docker login \
       --username '$oauthtoken' \
       --password "${ngc_cli_api_key}" \

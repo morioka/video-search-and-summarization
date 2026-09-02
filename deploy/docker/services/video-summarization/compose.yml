@@ -58,6 +58,7 @@ services:
       - LVS_LLM_MODEL_NAME=${LVS_LLM_MODEL_NAME}
       - LVS_LLM_BASE_URL=${LLM_BASE_URL:-http://${HOST_IP}:${LLM_PORT}}/v1
       - LVS_LLM_API_KEY=${OPENAI_API_KEY:-${NVIDIA_API_KEY}}
+      - LVS_EMB_API_KEY=${LVS_EMB_API_KEY:-${OPENAI_API_KEY:-${NVIDIA_API_KEY}}}
       - VIA_VLM_ENDPOINT=${VLM_BASE_URL:-http://${HOST_IP}:${VLM_PORT}}/v1/
       - NVIDIA_API_KEY=${NVIDIA_API_KEY}
 
@@ -84,11 +85,16 @@ services:
       - KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS:-kafka:9092}
       - KAFKA_STRUCTURED_SUMMARY_TOPIC=${KAFKA_STRUCTURED_SUMMARY_TOPIC:-mdx-structured-events-summary}
 
+      # Caption retrieval summary generation (disabled by default)
+      - LVS_CAPTION_GENERATE_SUMMARY=${LVS_CAPTION_GENERATE_SUMMARY:-false}
+      - LVS_CAPTION_SUMMARY_MODEL=${LVS_CAPTION_SUMMARY_MODEL:-${LLM_MODEL_TYPE:-nim}_llm}
+
       # LLM-based merging of overlapping/duplicate events in the structured summary
       - LVS_ENABLE_LLM_MERGING=${LVS_ENABLE_LLM_MERGING:-false}
 
       # Feature flags
       - DISABLE_CA_RAG=false
+      - LVS_RAG_BACKEND=${LVS_RAG_BACKEND:-ctx-rag}
       - ENABLE_AUDIO=${ENABLE_AUDIO:-false}
       - ENABLE_DENSE_CAPTION=false
       # The LVS HTTP API is sufficient for the developer profile. Keep MCP opt-in

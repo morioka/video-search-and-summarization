@@ -1,5 +1,5 @@
 {
 	"data_path": "./vst_data/",
-	"video_path": "./vst_video/",
+	"video_path": "/home/vst/vst_release/streamer_videos/",
 	"total_video_storage_size_MB": 100000
 }

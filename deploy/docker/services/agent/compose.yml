@@ -17,7 +17,7 @@
 
 services:
   vss-va-mcp:
-    image: nvcr.io/nvidia/vss-core/vss-agent:${VSS_AGENT_VERSION}
+    image: ${VSS_AGENT_IMAGE:-nvcr.io/nvidia/vss-core/vss-agent:${VSS_AGENT_VERSION}}
     container_name: vss-va-mcp
     network_mode: host
     profiles:
@@ -61,7 +61,7 @@ services:
 
   vss-agent:
     # Version pinned via VSS_AGENT_VERSION (see the profile .env files).
-    image: nvcr.io/nvidia/vss-core/vss-agent:${VSS_AGENT_VERSION}
+    image: ${VSS_AGENT_IMAGE:-nvcr.io/nvidia/vss-core/vss-agent:${VSS_AGENT_VERSION}}
     container_name: vss-agent
     network_mode: host
     profiles:
@@ -84,6 +84,8 @@ services:
       VSS_AGENT_HOST: ${VSS_AGENT_HOST}
       VSS_AGENT_PORT: ${VSS_AGENT_PORT}
       LVS_BACKEND_URL: ${LVS_BACKEND_URL}
+      LVS_CAPTION_GENERATE_SUMMARY: ${LVS_CAPTION_GENERATE_SUMMARY:-false}
+      LVS_CAPTION_SUMMARY_MODEL: ${LVS_CAPTION_SUMMARY_MODEL:-${LLM_MODEL_TYPE:-nim}_llm}
       RTVI_EMBED_MODEL: ${RTVI_EMBED_MODEL:-cosmos-embed1-448p}
       RTVI_EMBED_PORT: ${RTVI_EMBED_PORT}
       RTVI_CV_PORT: ${RTVI_CV_PORT}

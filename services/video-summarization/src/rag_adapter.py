@@ -37,6 +37,10 @@ Usage (tests)::
 
 from via_exception import ViaException
 
+import json
+import os
+import urllib.request
+
 
 class RagAdapter:
     """Wraps a ``ContextManager`` instance, converting its exceptions to :class:`ViaException`.
@@ -107,9 +111,53 @@ class RagAdapter:
             ViaException: If the underlying ContextManager raises any exception.
         """
         try:
-            return self._ctx_mgr.call(config)
+            result = self._ctx_mgr.call(config)
+            if "summarization" in config:
+                result = self._fallback_empty_summary(result, config)
+            return result
         except Exception as exc:
             raise ViaException(f"RAG call failed: {exc}", "RagAdapterError", 500) from exc
+
+    @staticmethod
+    def _fallback_empty_summary(result, config):
+        """Preserve raw RT-VLM captions when CA-RAG cannot parse them as Events."""
+        summary = (result or {}).get("summarization", {})
+        raw = summary.get("result") if isinstance(summary, dict) else None
+        try:
+            payload = json.loads(raw) if isinstance(raw, str) else raw
+        except (TypeError, ValueError):
+            payload = None
+        if not isinstance(payload, dict) or payload.get("events") or payload.get("video_summary"):
+            return result
+        state = config.get("summarization", {})
+        uuids = state.get("uuids", []) if isinstance(state, dict) else []
+        if not uuids:
+            return result
+        host, port = os.environ.get("ES_HOST"), os.environ.get("ES_PORT", "9200")
+        if not host:
+            return result
+        index = "default_" + str(uuids[0]).replace("-", "_")
+        query = {"size": 1000, "query": {"match": {"metadata.content_metadata.uuid": str(uuids[0])}}}
+        request = urllib.request.Request(
+            f"http://{host}:{port}/{index}/_search",
+            data=json.dumps(query).encode(),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=10) as response:
+                hits = json.loads(response.read().decode()).get("hits", {}).get("hits", [])
+            texts = [str(hit.get("_source", {}).get("text", "")) for hit in hits]
+            text = "\n".join(item for item in texts if item)
+            if text:
+                summary["result"] = json.dumps(
+                    {"events": [], "total_events": 0, "video_summary": text, "uuids": uuids},
+                    ensure_ascii=False,
+                )
+                result["summarization"] = summary
+        except (OSError, ValueError, TypeError, KeyError):
+            pass
+        return result
 
     # ------------------------------------------------------------------
     # Lifecycle

@@ -196,15 +196,18 @@ class EsCaptionAdapter(BackendAdapter):
 
         # collection -> stream uuid (RT-VLM partitions per stream).
         if collection_name:
-            bool_filters.append({"term": {f"{META_PREFIX}.uuid": collection_name}})
+            # Logstash's dynamic mapping stores these identifiers as text with
+            # a keyword subfield. Term queries must target the exact-value
+            # subfield or Elasticsearch will not match the UUID.
+            bool_filters.append({"term": {f"{META_PREFIX}.uuid.keyword": collection_name}})
 
         # doc_type: caller override or adapter default.
         doc_type = f.get("doc_type", self.default_doc_type)
-        bool_filters.append({"term": {f"{META_PREFIX}.doc_type": doc_type}})
+        bool_filters.append({"term": {f"{META_PREFIX}.doc_type.keyword": doc_type}})
 
         # camera scoping is common enough to lift out.
         if "camera_id" in f:
-            bool_filters.append({"term": {f"{META_PREFIX}.camera_id": f["camera_id"]}})
+            bool_filters.append({"term": {f"{META_PREFIX}.camera_id.keyword": f["camera_id"]}})
 
         # time_range — two paths:
         # - ISO 8601 strings → filter on `@timestamp` (Logstash-set date field,
