@@ -86,6 +86,34 @@ def health() -> dict[str, str]:
     return {"status": "ok", "service": "video-analytics-api-local"}
 
 
+@app.get("/v1/sensor/list")
+def sensor_list() -> list[dict[str, str]]:
+    """Return configured and discovered sensors for local stored-video evaluation."""
+    configured_id = os.getenv("VSS_SENSOR_ID", "local-konro-inspection")
+    configured_name = os.getenv("VSS_SENSOR_NAME", "konro_inspection")
+    sensors: dict[str, dict[str, str]] = {
+        configured_id: {"name": configured_name, "sensorId": configured_id, "state": "online"}
+    }
+    try:
+        result = es.search(
+            index="default_*",
+            size=0,
+            query={"exists": {"field": "metadata.content_metadata.sensorId"}},
+            aggs={"sensor_ids": {"terms": {"field": "metadata.content_metadata.sensorId.keyword", "size": 100}}},
+            ignore_unavailable=True,
+        )
+        buckets = result.get("aggregations", {}).get("sensor_ids", {}).get("buckets", [])
+        for bucket in buckets:
+            sensor_id = str(bucket.get("key", "")).strip()
+            if sensor_id and sensor_id not in sensors:
+                sensors[sensor_id] = {"name": sensor_id, "sensorId": sensor_id, "state": "online"}
+    except Exception:
+        # Sensor discovery is an enhancement; retain the configured fallback
+        # while Elasticsearch is starting or has an older incompatible mapping.
+        pass
+    return list(sensors.values())
+
+
 @app.get("/alerts")
 def alerts(sensorId: str | None = None, place: str | None = None, fromTimestamp: str | None = None, toTimestamp: str | None = None):
     return _search(sensorId, place, fromTimestamp, toTimestamp)
