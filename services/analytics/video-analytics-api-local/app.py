@@ -22,7 +22,19 @@ def _value(source: dict[str, Any], *names: str) -> Any:
 def _query(sensor_id: str | None, place: str | None, start: str | None, end: str | None) -> dict[str, Any]:
     filters: list[dict[str, Any]] = []
     if sensor_id:
-        filters.append({"bool": {"should": [{"term": {"sensorId.keyword": sensor_id}}, {"term": {"sensor_id.keyword": sensor_id}}], "minimum_should_match": 1}})
+        filters.append(
+            {
+                "bool": {
+                    "should": [
+                        {"term": {"sensorId.keyword": sensor_id}},
+                        {"term": {"sensor_id.keyword": sensor_id}},
+                        {"term": {"metadata.content_metadata.sensorId.keyword": sensor_id}},
+                        {"term": {"sensor.id.keyword": sensor_id}},
+                    ],
+                    "minimum_should_match": 1,
+                }
+            }
+        )
     if place:
         filters.append({"bool": {"should": [{"term": {"place.keyword": place}}, {"term": {"place.name.keyword": place}}], "minimum_should_match": 1}})
     if start or end:
