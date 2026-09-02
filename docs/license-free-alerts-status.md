@@ -40,15 +40,16 @@ API単体を手動起動する必要はない。
 1. ~~ローカル設定または動画登録情報を返す`GET /v1/sensor/list`を追加する。~~ 完了
 2. ~~`Create Alert Rule`からAlert Bridgeへルールを登録・削除する。~~ 完了
 3. ~~疑似動画を対象にルールが動作し、Alerts画面へ反映されることを確認する。~~ 完了
-4. raw eventと正式Alertの表示項目マッピングを整理する。
-5. 起動手順と未設定環境変数の警告を整理する。
-6. VST Storage Adaptorを用意し、保存動画検索のtimeline API（現状404）を実装または接続する。
-7. `vss-agent`を含む検索・要約経路の外部公開ポートとCompose起動順を固定し、再起動後の疎通を自動検証する。
+4. ~~raw eventと正式Alertの表示項目マッピングを整理する。~~ 完了
+5. ~~起動手順と未設定環境変数の警告を整理する。~~ 起動・検証スクリプトを追加済み。Composeの警告は起動対象外サービス由来のため残存。
+6. ~~VST Storage Adaptorを用意し、保存動画検索のtimeline API（現状404）を実装または接続する。~~ ローカルStorage互換APIで実装済み。`/vst/api/v1/storage/timelines` は登録済み動画に対して `200` を返す。
+7. ~~`vss-agent`を含む検索・要約経路の外部公開ポートとCompose起動順を固定し、再起動後の疎通を自動検証する。~~ 完了
 
 現状では、raw captionレスポンスに`documentType=raw_events`と`isRawEvent=true`
 を追加し、正式Alertとの区別をAPI契約に反映済み。Composeの未設定変数警告は
 起動対象外サービスのinclude定義に由来するため、動作を変えない範囲での整理を
 別途検討する。正式Alert文書の生成・表示はraw caption経路とは分けて確認する。
+起動スクリプトの再実行による既存コンテナ再利用と、Alert Bridgeを含む一括スモークテストの再現性も確認済み。
 
 ## 2026-08-28 中断時点
 
