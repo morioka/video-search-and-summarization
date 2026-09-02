@@ -116,6 +116,23 @@ Follow the steps from the [documentation](https://docs.nvidia.com/vss/latest/clo
 
 **Ideal for:** Deploying a VSS agent on your own hardware or bare metal cloud instance.
 
+#### License-free local validation
+
+For functional validation without NVIDIA VLM/LLM application images, use the local
+OpenAI-compatible path. It keeps Kafka, Elasticsearch, Redis, and the Agent API
+interfaces while replacing the unavailable VSS application services with local
+compatibility implementations.
+
+```bash
+./deploy/docker/scripts/start-license-free-lvs.sh
+./deploy/docker/scripts/verify-license-free-lvs.sh
+```
+
+The tested UI is available at `http://localhost:3000`. See
+[`docs/license-free-alerts-status.md`](docs/license-free-alerts-status.md) and
+[`docs/nvidia-dependency-inventory.md`](docs/nvidia-dependency-inventory.md) for
+scope, limitations, and dependency boundaries.
+
 #### System Requirements
 
 - OS:
