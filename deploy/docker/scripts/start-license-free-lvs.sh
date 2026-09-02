@@ -32,6 +32,9 @@ echo "Starting Kafka caption transport..."
     --env-file "$ENV_FILE" \
     -f services/infra/compose.yml \
     up -d kafka kafka-topic-init-container
+  # Compose returns after the one-shot initializer starts; wait for topic
+  # creation to finish before the RT-VLM producer is initialized.
+  docker wait vss-kafka-topics >/dev/null
 )
 
 echo "Starting OpenAI-compatible RT-VLM..."
