@@ -77,6 +77,7 @@ API単体を手動起動する必要はない。
 - ローカルStorage互換サービス`vss-vst-storage-local`を追加し、`31001`でupload/timelines/file-url/sensor-streamsを提供。単体のhealth、動画保存、timeline取得を確認済み。Agent overrideの`VST_INTERNAL_URL`を`http://127.0.0.1:31001`へ変更した。再開時はStorageサービス起動後に`vss-agent`をoverride付きComposeで再作成し、アップロード完了APIを再検証する。
 - 2026-09-02: Storageへ`konro_inspection.mp4`を登録し、Agentのcomplete APIからRT-VLM caption生成（`chunks_processed=1`）まで成功。Agentの`vst_video_list`は動画を検出し、`vst_video_summarize_captions`も成功した。LVS直接解析はhuman prompt callback未登録で失敗したが、caption検索・要約の主要経路には影響しない。
 - 2026-09-02追記: Elasticsearchを直接検索すると、既存の`default_*` caption文書は存在するが、今回のlocal Storage sensor IDに紐づく文書は0件だった。RT-VLMのcaption生成結果をKafka/Elasticsearchへ保存する経路は未接続であり、Agent要約の成功はVST側の要約応答を含むため、ES永続化の成功とは分けて扱う。
+- 2026-09-02追記2: 公開Kafkaイメージ（`confluentinc/cp-kafka:8.2.0`）とトピック初期化を起動し、RT-VLMをプロファイルの`HOST_IP:9092`へ接続。実動画のcomplete API実行後、`default_<sensor>`インデックスに`raw_events` caption文書がLogstash経由で保存されることを確認した。ローカルRT-VLM composeの既定値と起動スクリプトにもKafka起動を反映し、再現可能な主要経路になった。
 
 ## 再開コマンド（2026-08-31）
 

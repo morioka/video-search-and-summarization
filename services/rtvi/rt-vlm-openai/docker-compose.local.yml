@@ -7,6 +7,9 @@ services:
       dockerfile: Dockerfile
     image: vss-rt-vlm-openai:local
     environment:
+      # Publish captions to the existing Logstash -> Elasticsearch path when
+      # the profile broker is available.
+      RTVI_OPENAI_KAFKA_BOOTSTRAP_SERVERS: "${RTVI_OPENAI_KAFKA_BOOTSTRAP_SERVERS:-${HOST_IP:-host.docker.internal}:9092}"
       RTVI_OPENAI_DEFAULT_CHUNK_DURATION: "10"
       RTVI_OPENAI_DEFAULT_FRAMES_PER_CHUNK: "2"
       RTVI_OPENAI_ALERT_ENDPOINT: "http://host.docker.internal:9080"
