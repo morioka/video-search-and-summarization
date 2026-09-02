@@ -3,6 +3,7 @@ from pathlib import Path
 from uuid import uuid4
 import os
 import json
+import subprocess
 
 from fastapi import FastAPI, File, Form, Header, UploadFile
 from fastapi.responses import FileResponse
@@ -19,6 +20,13 @@ except (OSError, ValueError):
 def _persist() -> None:
     INDEX.write_text(json.dumps(records, ensure_ascii=True, indent=2))
 
+def _duration(path: Path) -> float:
+    try:
+        result = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", str(path)], capture_output=True, text=True, timeout=15, check=True)
+        return max(0.0, float(result.stdout.strip()))
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return 1.0
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
@@ -31,7 +39,8 @@ async def upload(mediaFile: UploadFile = File(...), filename: str = Form("video.
     path.write_bytes(await mediaFile.read())
     start = datetime.now(timezone.utc).replace(microsecond=0)
     end = start + timedelta(seconds=1)
-    records[sensor_id] = {"path": str(path), "start": start.isoformat().replace("+00:00", "Z"), "end": end.isoformat().replace("+00:00", "Z"), "filename": safe}
+    duration = _duration(path)
+    records[sensor_id] = {"path": str(path), "start": start.isoformat().replace("+00:00", "Z"), "end": end.isoformat().replace("+00:00", "Z"), "filename": safe, "duration": duration}
     _persist()
     return {"bytes": path.stat().st_size, "filename": safe, "filePath": str(path), "sensorId": sensor_id, "streamId": sensor_id}
 
@@ -41,7 +50,7 @@ def timelines():
 
 @app.get("/vst/api/v1/sensor/streams")
 def streams():
-    return [{key: [{"name": value["filename"], "sensorId": key, "streamId": key, "media_type": "video"}]} for key, value in records.items()]
+    return [{key: [{"name": value["filename"], "sensorId": key, "streamId": key, "media_type": "video", "duration": value.get("duration", 1.0)}]} for key, value in records.items()]
 
 @app.get("/vst/api/v1/storage/file/{sensor_id}/url")
 def file_url(sensor_id: str):
