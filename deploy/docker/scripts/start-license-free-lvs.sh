@@ -62,7 +62,13 @@ echo "Starting local Storage and Agent..."
     -f compose.yml \
     -f "$PROFILE_DIR/license-free.override.yml" \
     up -d --no-deps vss-agent
+  docker compose \
+    --env-file "$ENV_FILE" \
+    -f compose.yml \
+    -f "$PROFILE_DIR/license-free.override.yml" \
+    up -d vss-video-analytics-api
 )
 wait_for_http "http://127.0.0.1:8001/health" "VSS Agent"
+wait_for_http "http://127.0.0.1:7777/video-analytics-api/incidents?maxResultSize=1" "Alerts API"
 
 echo "Local license-free LVS services started."
