@@ -88,6 +88,7 @@ API単体を手動起動する必要はない。
 - 2026-09-02追記4: Alert Bridge専用Kafkaとの9092番ポート競合を避ける`services/alert/docker-compose.external-kafka.yml`を追加。既存のプロファイルKafkaを再利用し、Alert Bridge/Redisをライセンスフリー起動スクリプトから冪等に起動できるようにした。
 - 2026-09-02追記5: 保存動画要約の非対話APIでHITL callbackが未登録でも設定済みの既定scenario/eventsを使えるフォールバックをAgentへ追加。ローカル`vss-lvs`は公開依存（`uvicorn`、`sse-starlette`、`json_repair`等）の欠落が段階的に検出されるため、現時点では起動スクリプトの主要経路に含めず停止している。
 - 2026-09-02追記6: `vss-lvs`が利用できない場合、`lvs_video_understanding`は`video_understanding`へフォールバックするようにした。`konro_inspection.mp4`に対するAgent OpenAI互換API呼び出しで、Storageから動画を取得し、OpenAI互換RT-VLMへ送信する経路がHTTP 200まで完了した。
+- 2026-09-02追記7: 保存動画要約の直接VLMフォールバック、Agent設定取得警告の修正、NVIDIA依存インベントリ、READMEのライセンスフリー起動手順をフォークへ同期した。本日の検証後、関連コンテナは停止済み。再開時は `./deploy/docker/scripts/start-license-free-lvs.sh` を実行する。
 
 ## 再開コマンド（2026-08-31）
 
