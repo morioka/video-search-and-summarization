@@ -2,14 +2,22 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from uuid import uuid4
 import os
+import json
 
 from fastapi import FastAPI, File, Form, Header, UploadFile
 from fastapi.responses import FileResponse
 
 ROOT = Path(os.getenv("VST_VIDEO_ROOT", "/data/videos"))
 ROOT.mkdir(parents=True, exist_ok=True)
+INDEX = ROOT / ".vst-index.json"
 app = FastAPI(title="Local VST Storage Compatibility API")
-records: dict[str, dict] = {}
+try:
+    records: dict[str, dict] = json.loads(INDEX.read_text()) if INDEX.exists() else {}
+except (OSError, ValueError):
+    records = {}
+
+def _persist() -> None:
+    INDEX.write_text(json.dumps(records, ensure_ascii=True, indent=2))
 
 @app.get("/health")
 def health():
@@ -23,7 +31,8 @@ async def upload(mediaFile: UploadFile = File(...), filename: str = Form("video.
     path.write_bytes(await mediaFile.read())
     start = datetime.now(timezone.utc).replace(microsecond=0)
     end = start + timedelta(seconds=1)
-    records[sensor_id] = {"path": path, "start": start.isoformat().replace("+00:00", "Z"), "end": end.isoformat().replace("+00:00", "Z"), "filename": safe}
+    records[sensor_id] = {"path": str(path), "start": start.isoformat().replace("+00:00", "Z"), "end": end.isoformat().replace("+00:00", "Z"), "filename": safe}
+    _persist()
     return {"bytes": path.stat().st_size, "filename": safe, "filePath": str(path), "sensorId": sensor_id, "streamId": sensor_id}
 
 @app.get("/vst/api/v1/storage/timelines")
