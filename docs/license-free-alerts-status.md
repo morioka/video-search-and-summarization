@@ -109,6 +109,8 @@ docker compose --env-file developer-profiles/dev-profile-lvs/generated.env \
 ./deploy/docker/scripts/verify-license-free-lvs.sh
 ```
 
+この検証には、稼働中のVLMコンテナがNVIDIA NGC由来でないことの確認も含む。
+
 疑似RTSPで正式Alert経路を再現する場合（MediaMTXとffmpegを使用）:
 
 ```bash

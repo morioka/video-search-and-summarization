@@ -19,4 +19,12 @@ request "Caption indices" "${ELASTICSEARCH_URL:-http://127.0.0.1:9200}/_count?in
 request "Sensor list" "${ALERTS_API_URL:-http://127.0.0.1:7777/video-analytics-api}/v1/sensor/list"
 request "Alerts incidents" "${ALERTS_API_URL:-http://127.0.0.1:7777/video-analytics-api}/incidents?maxResultSize=1"
 
+vlm_images="$(docker ps --format '{{.Image}}' | grep -Ei 'rt[-_]vlm|vlm.*nvidia|nvcr.io/.*/vlm' || true)"
+if printf '%s\n' "$vlm_images" | grep -Eiq 'nvcr.io|nvidia.*vlm|vss-rt-vlm:3'; then
+  echo "FAIL: proprietary NVIDIA VLM image is running:" >&2
+  printf '%s\n' "$vlm_images" >&2
+  exit 1
+fi
+echo "OK: license-free VLM image policy"
+
 echo "License-free LVS smoke test passed."
