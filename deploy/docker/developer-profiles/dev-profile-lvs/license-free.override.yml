@@ -5,6 +5,14 @@
 # images (Kafka, Elasticsearch, Redis, PostgreSQL) remain unchanged.
 
 services:
+  # The profile's original `rtvi-vlm` service remains defined in the base
+  # compose files. It is intentionally commented out here because it points
+  # to the NVIDIA image; start the validated OpenAI-compatible service from
+  # `services/rtvi/rt-vlm-openai/docker-compose.cpu.yml` instead.
+  # rtvi-vlm:
+  #   image: ${RTVI_VLM_IMAGE:-nvcr.io/nvidia/vss-core/vss-rt-vlm:${RTVI_VLM_IMAGE_TAG:-3.2.1}}
+  #   runtime: nvidia
+
   vss-vst-storage-local:
     build:
       context: ../../services/analytics/vst-storage-local
