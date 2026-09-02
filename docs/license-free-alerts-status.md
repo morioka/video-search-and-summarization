@@ -45,6 +45,11 @@ API単体を手動起動する必要はない。
 6. VST Storage Adaptorを用意し、保存動画検索のtimeline API（現状404）を実装または接続する。
 7. `vss-agent`を含む検索・要約経路の外部公開ポートとCompose起動順を固定し、再起動後の疎通を自動検証する。
 
+現状では、raw captionレスポンスに`documentType=raw_events`と`isRawEvent=true`
+を追加し、正式Alertとの区別をAPI契約に反映済み。Composeの未設定変数警告は
+起動対象外サービスのinclude定義に由来するため、動作を変えない範囲での整理を
+別途検討する。正式Alert文書の生成・表示はraw caption経路とは分けて確認する。
+
 ## 2026-08-28 中断時点
 
 - Alerts UIは表示可能（Elasticsearch由来のイベント3〜4件）。
@@ -78,6 +83,7 @@ API単体を手動起動する必要はない。
 - 2026-09-02: Storageへ`konro_inspection.mp4`を登録し、Agentのcomplete APIからRT-VLM caption生成（`chunks_processed=1`）まで成功。Agentの`vst_video_list`は動画を検出し、`vst_video_summarize_captions`も成功した。LVS直接解析はhuman prompt callback未登録で失敗したが、caption検索・要約の主要経路には影響しない。
 - 2026-09-02追記: Elasticsearchを直接検索すると、既存の`default_*` caption文書は存在するが、今回のlocal Storage sensor IDに紐づく文書は0件だった。RT-VLMのcaption生成結果をKafka/Elasticsearchへ保存する経路は未接続であり、Agent要約の成功はVST側の要約応答を含むため、ES永続化の成功とは分けて扱う。
 - 2026-09-02追記2: 公開Kafkaイメージ（`confluentinc/cp-kafka:8.2.0`）とトピック初期化を起動し、RT-VLMをプロファイルの`HOST_IP:9092`へ接続。実動画のcomplete API実行後、`default_<sensor>`インデックスに`raw_events` caption文書がLogstash経由で保存されることを確認した。ローカルRT-VLM composeの既定値と起動スクリプトにもKafka起動を反映し、再現可能な主要経路になった。
+- 2026-09-02追記3: 既存のMediaMTXへ`konro_inspection.mp4`を疑似RTSP配信し、RT-VLMの`/v1/streams/add`へ`local-konro-inspection-pt2`を登録。キーワード一致によりAlert BridgeへHTTP 202で通知され、VLM検証後に`mdx-vlm-incidents-2026-09-02`へ正式incidentが保存された。Alerts APIでも同sensor_idに対しraw eventとformal incident（`isRawEvent=false`）の両方を取得できることを確認。検証後、ストリーム削除とMediaMTX停止を実施した。
 
 ## 再開コマンド（2026-08-31）
 
@@ -95,6 +101,18 @@ docker compose --env-file developer-profiles/dev-profile-lvs/generated.env \
 
 ```bash
 ./deploy/docker/scripts/start-license-free-lvs.sh
+```
+
+起動後の主要経路を一括確認する場合:
+
+```bash
+./deploy/docker/scripts/verify-license-free-lvs.sh
+```
+
+疑似RTSPで正式Alert経路を再現する場合（MediaMTXとffmpegを使用）:
+
+```bash
+./deploy/docker/scripts/demo-license-free-alert.sh
 ```
 - 保存動画検索の`preflight.py`は、VST `127.0.0.1:31000` が未起動のため停止した。RT-VLM/Alert経路の障害ではなく、VST/NVStreamer起動が次の前提条件である。
 - 停止済み`vss-vios-nvstreamer-lvs`を再起動すると sensor API は`200`になったが、`/vst/api/v1/storage/timelines`は`404`（storage adaptor未提供）で、保存動画検索の前提は未充足。ストリーム一覧も0件。

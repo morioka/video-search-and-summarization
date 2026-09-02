@@ -22,3 +22,6 @@ The `/incidents` route is the endpoint used by the shipped Alerts UI and returns
 an `incidents` array for compatibility. Raw caption documents remain explicitly
 marked as `video_event` with no VLM verdict or severity; they are not converted
 into formal alerts.
+Responses expose `documentType` and `isRawEvent` so clients can distinguish
+caption observations from formal incident documents without relying on the
+index name.

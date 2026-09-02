@@ -57,11 +57,17 @@ def _normalize(hit: dict[str, Any]) -> dict[str, Any]:
     alert_type = _value(source, "type", "alertType", "alert_type", "category")
     if not isinstance(alert_type, (str, int, float)):
         alert_type = None
-    description = _value(source, "description", "text", "reasoning")
+    incident_info = source.get("info") if isinstance(source.get("info"), dict) else {}
+    description = _value(source, "description", "text", "reasoning") or _value(
+        incident_info, "description", "vlm_description", "reasoning"
+    )
     if not isinstance(description, str):
         description = ""
     category = str(alert_type) if alert_type is not None else "video_event"
+    document_type = str(_value(source, "documentType", "doc_type") or content.get("doc_type") or "alert")
+    is_raw_event = document_type == "raw_events"
     timestamp = _value(source, "@timestamp", "timestamp", "startTime", "start_time", "eventTime")
+    trigger_module = "raw_event" if is_raw_event else str(_value(source, "category", "type") or "VLM")
     return {
         **source,
         "id": source.get("id", hit.get("_id")),
@@ -70,7 +76,9 @@ def _normalize(hit: dict[str, Any]) -> dict[str, Any]:
         "place": _value(source, "place", "location"),
         "type": category,
         "category": category,
-        "analyticsModule": {"description": description, "info": {"triggerModules": "raw_event"}},
+        "documentType": document_type,
+        "isRawEvent": is_raw_event,
+        "analyticsModule": {"description": description, "info": {"triggerModules": trigger_module}},
         "timestamp": timestamp,
         "severity": _value(source, "severity", "level", "priority"),
     }

@@ -34,7 +34,10 @@ echo "Starting Kafka caption transport..."
     up -d kafka kafka-topic-init-container
   # Compose returns after the one-shot initializer starts; wait for topic
   # creation to finish before the RT-VLM producer is initialized.
-  docker wait vss-kafka-topics >/dev/null
+  if ! timeout 120 docker wait vss-kafka-topics >/dev/null; then
+    echo "Kafka topic initialization failed or timed out." >&2
+    exit 1
+  fi
 )
 
 echo "Starting OpenAI-compatible RT-VLM..."
