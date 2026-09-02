@@ -88,5 +88,11 @@ docker compose --env-file developer-profiles/dev-profile-lvs/generated.env \
   -f compose.yml -f developer-profiles/dev-profile-lvs/license-free.override.yml \
   up -d --no-deps --force-recreate vss-agent
 ```
+
+分離Composeをまとめて起動する場合は、リポジトリルートから次を実行する。
+
+```bash
+./deploy/docker/scripts/start-license-free-lvs.sh
+```
 - 保存動画検索の`preflight.py`は、VST `127.0.0.1:31000` が未起動のため停止した。RT-VLM/Alert経路の障害ではなく、VST/NVStreamer起動が次の前提条件である。
 - 停止済み`vss-vios-nvstreamer-lvs`を再起動すると sensor API は`200`になったが、`/vst/api/v1/storage/timelines`は`404`（storage adaptor未提供）で、保存動画検索の前提は未充足。ストリーム一覧も0件。
