@@ -70,7 +70,7 @@ echo "Starting MediaMTX, local NVStreamer, Storage and Agent..."
     --env-file "$ENV_FILE" \
     -f compose.yml \
     -f "$PROFILE_DIR/license-free.override.yml" \
-    up -d --no-deps vss-agent
+    up -d --no-deps --build vss-agent
   docker compose \
     --env-file "$ENV_FILE" \
     -f compose.yml \
