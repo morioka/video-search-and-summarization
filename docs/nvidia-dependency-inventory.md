@@ -48,6 +48,11 @@ Agentについては、`services/agent/docker/Dockerfile`の`RUNTIME_BASE`をbui
 依存233パッケージの導入、codecライブラリ検査、`vss_agents`・FastAPI・LiteLLMの
 importは成功している。実サービスとしてのAgent起動置換は、次段階で疎通検証する。
 
+その後、license-free overrideへAgentの自動ビルドを組み込み、
+`vss-agent-generic:dev`でhealth・Alerts・Storageを含む全体スモークテストに成功した。
+UIも`UI_RUNTIME_BASE=node:22-bookworm-slim`でビルド・起動でき、3000番のHTTP応答を
+確認済みである。
+
 LVS（`services/video-summarization`）は単純なbase image置換の対象外である。
 `start_via.sh`は`via-engine/via_server.py`、`/opt/nvidia/via`の実行環境、VIA/CUDA
 ランタイムを前提とし、DockerfileもNVIDIA Ubuntu builderと`via-engine-base`を
