@@ -82,7 +82,7 @@ echo "Starting MediaMTX, local NVStreamer, Storage and Agent..."
     --env-file "$ENV_FILE" \
     -f compose.yml \
     -f "$PROFILE_DIR/license-free.override.yml" \
-    up -d --no-deps vss-ui
+    up -d --no-deps --build vss-ui
 )
 wait_for_http "http://127.0.0.1:8001/health" "VSS Agent"
 wait_for_http "http://127.0.0.1:7777/video-analytics-api/incidents?maxResultSize=1" "Alerts API"

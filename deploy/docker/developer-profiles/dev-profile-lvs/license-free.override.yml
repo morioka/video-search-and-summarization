@@ -76,7 +76,12 @@ services:
       VSS_AGENT_PORT: ${LICENSE_FREE_AGENT_PORT:-8001}
 
   vss-ui:
-    image: ${VSS_UI_IMAGE:-vss-ui-local:3.2.0}
+    build:
+      context: ../..
+      dockerfile: services/ui/Dockerfile
+      args:
+        UI_RUNTIME_BASE: ${LICENSE_FREE_UI_RUNTIME_BASE:-node:22-bookworm-slim}
+    image: ${VSS_UI_IMAGE:-vss-ui-generic:dev}
 
   # License-free replacement for the NVIDIA NVStreamer image.  It exposes the
   # dashboard on 31000 and publishes uploaded files to the shared MediaMTX

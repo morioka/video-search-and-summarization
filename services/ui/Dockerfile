@@ -1,6 +1,7 @@
 ARG USER_ID=65532
 ARG GROUP_ID=65532
 ARG BUILD_TYPE=prod
+ARG UI_RUNTIME_BASE=nvcr.io/nvidia/distroless/node:22-v4.0.7
 
 
 # Builder phase
@@ -34,10 +35,10 @@ RUN chmod -R 755 apps/nv-metropolis-bp-vss-ui/public && \
 
 
 # Conditional runner phase
-FROM nvcr.io/nvidia/distroless/node:22-v4.0.7 AS runner-prod
+FROM ${UI_RUNTIME_BASE} AS runner-prod
 ARG BUILD_TYPE
 
-FROM nvcr.io/nvidia/distroless/node:22-v4.0.7-dev AS runner-dev
+FROM ${UI_RUNTIME_BASE} AS runner-dev
 ARG BUILD_TYPE
 
 
