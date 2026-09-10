@@ -47,3 +47,11 @@ Agentについては、`services/agent/docker/Dockerfile`の`RUNTIME_BASE`をbui
 し、`python:3.13-slim-bookworm`を指定した汎用イメージのビルドを確認した。
 依存233パッケージの導入、codecライブラリ検査、`vss_agents`・FastAPI・LiteLLMの
 importは成功している。実サービスとしてのAgent起動置換は、次段階で疎通検証する。
+
+LVS（`services/video-summarization`）は単純なbase image置換の対象外である。
+`start_via.sh`は`via-engine/via_server.py`、`/opt/nvidia/via`の実行環境、VIA/CUDA
+ランタイムを前提とし、DockerfileもNVIDIA Ubuntu builderと`via-engine-base`を
+必要とする。`vss-ctx-rag`を公開Python依存へ置き換えるだけでは起動経路を再現
+できないため、現行license-free構成ではLVSを主要起動経路から分離している。
+完全非依存化する場合は、保存動画のチャンク処理・要約APIを公開Python/FFmpegで
+機能限定再実装する方針が現実的である。
