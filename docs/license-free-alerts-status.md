@@ -57,8 +57,16 @@ API単体を手動起動する必要はない。
 - `mdx-vss-video-analytics-api-1`は統合Compose管理、`healthy`。
 - 互換APIの再起動後疎通を確認済み。
 - NGCの`vss-video-analytics-api:3.2.0`取得はAccess Deniedで未使用。
-- 次回はセンサー一覧APIから再開する。
+- センサー一覧APIは実装済み。現在はUIからのルール作成・表示確認へ移行。
 - `GET /vst/api/v1/sensor/list` -> `200`（`konro_inspection`疑似センサー）を確認済み。
+
+## 2026-09-10 追記
+
+- LVSプロファイルの`NEXT_PUBLIC_ENABLE_ALERTS_TAB`を`true`に設定し、Alertsタブを常時有効化。
+- NVStreamer互換UIのMedia Uploadでドラッグ&ドロップを実装。ファイル選択と同じアップロード経路を使用する。
+- ローカルサービスのCompose build contextを修正し、リポジトリルートから再ビルドできることを確認。
+- NVStreamer、VST Storage、MediaMTX、Agent、Alert Bridge、UIを稼働状態で確認。全体スモークテスト成功。
+- フォーク側の先行履歴をマージし、`codex/openai-rt-vlm`へpush済み（`8ad5e4de7`）。
 
 ## 2026-08-31 追記
 
