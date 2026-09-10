@@ -14,7 +14,9 @@ fi
 wait_for_http() {
   local url="$1"
   local label="$2"
-  local attempts=30
+  # Agent and Elasticsearch-backed services can take over a minute after
+  # recreation; allow three minutes before declaring startup failed.
+  local attempts=90
   until curl --max-time 3 -fsS "$url" >/dev/null 2>&1; do
     attempts=$((attempts - 1))
     if (( attempts == 0 )); then
