@@ -21,6 +21,14 @@ request "Caption indices" "${ELASTICSEARCH_URL:-http://127.0.0.1:9200}/_count?in
 request "Sensor list" "${ALERTS_API_URL:-http://127.0.0.1:7777/video-analytics-api}/v1/sensor/list"
 request "Alerts incidents" "${ALERTS_API_URL:-http://127.0.0.1:7777/video-analytics-api}/incidents?maxResultSize=1"
 request "Alert Bridge" "${ALERT_BRIDGE_URL:-http://127.0.0.1:9080}/health"
+request "VSS UI" "${UI_URL:-http://127.0.0.1:3000}/"
+
+ui_alerts_enabled="$(docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' vss-agent-ui 2>/dev/null | awk -F= '$1=="NEXT_PUBLIC_ENABLE_ALERTS_TAB" {print $2; exit}')"
+if [[ "${ui_alerts_enabled}" != "true" ]]; then
+  echo "FAIL: VSS UI Alerts tab is not enabled (NEXT_PUBLIC_ENABLE_ALERTS_TAB=${ui_alerts_enabled:-unset})" >&2
+  exit 1
+fi
+echo "OK: VSS UI Alerts tab"
 
 if [[ "$(docker inspect -f '{{.State.Running}}' vss-mediamtx 2>/dev/null || true)" != "true" ]]; then
   echo "FAIL: MediaMTX container is not running (vss-mediamtx)" >&2
