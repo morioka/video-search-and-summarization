@@ -60,3 +60,22 @@ LVS（`services/video-summarization`）は単純なbase image置換の対象外�
 できないため、現行license-free構成ではLVSを主要起動経路から分離している。
 完全非依存化する場合は、保存動画のチャンク処理・要約APIを公開Python/FFmpegで
 機能限定再実装する方針が現実的である。
+
+## 2026-09-11 LVSローカルビルド検証
+
+`services/video-summarization/docker/base/Dockerfile`から`via-engine-base`を
+ローカルビルドし、そのイメージを`BASE_IMAGE`に指定したLVSイメージの生成に成功した。
+さらに`INSTALL_CTX_RAG=true`でビルドすると、公開GitHubのCA-RAG 3.0.1とその依存
+(FastAPI、uvicorn、pydantic、httpx等)が最終イメージに入り、`via_server`、
+`via_stream_handler`、`rtvi_vlm_client`のimportを確認できる。
+
+検証中、Dockerfileのグローバル`INSTALL_CTX_RAG`引数が`FROM`後のステージに
+引き継がれず、`true/false`指定が無視される不具合を修正した。現在は
+`pkg-installer`ステージで引数を再宣言している。
+
+ただし、このビルドは`nvcr.io/nvidia/distroless/python`、`nvcr.io/nvidia/base/ubuntu`
+および`via-engine-base`（同じNVIDIAベースから生成）を取得できることが前提である。
+したがって「ローカルで再ビルド可能」ではあるが、「NVIDIA配布物へのアクセスなしで
+再現可能」ではない。`INSTALL_CTX_RAG=false`の最小ビルドは成功するものの、FastAPI等
+が入らずAPIは起動しないため、実用起動にはCA-RAG有効ビルドまたは同等依存の明示追加が
+必要である。

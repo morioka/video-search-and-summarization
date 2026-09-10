@@ -19,6 +19,11 @@ ARG INSTALL_CTX_RAG="true"
 # Package installer: ubuntu base for shell + uv (uv is discarded; only site-packages reach final image)
 FROM nvcr.io/nvidia/base/ubuntu:jammy-20250415.1 AS pkg-installer
 
+# Global ARG values are not automatically available after FROM. Re-declare this
+# flag in the installer stage so the optional CA-RAG dependency is controlled by
+# the build argument as intended.
+ARG INSTALL_CTX_RAG
+
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
 ENV PIP_DEFAULT_TIMEOUT=180
