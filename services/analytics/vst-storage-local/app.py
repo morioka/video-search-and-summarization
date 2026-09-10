@@ -4,6 +4,7 @@ from uuid import uuid4
 import os
 import json
 import subprocess
+import urllib.request
 
 from fastapi import FastAPI, File, Form, Header, UploadFile
 from fastapi.responses import FileResponse
@@ -12,6 +13,7 @@ ROOT = Path(os.getenv("VST_VIDEO_ROOT", "/data/videos"))
 ROOT.mkdir(parents=True, exist_ok=True)
 INDEX = ROOT / ".vst-index.json"
 app = FastAPI(title="Local VST Storage Compatibility API")
+NVSTREAMER_URL = os.getenv("NVSTREAMER_URL", "http://127.0.0.1:31000").rstrip("/")
 try:
     records: dict[str, dict] = json.loads(INDEX.read_text()) if INDEX.exists() else {}
 except (OSError, ValueError):
@@ -50,7 +52,21 @@ def timelines():
 
 @app.get("/vst/api/v1/sensor/streams")
 def streams():
-    return [{key: [{"name": value["filename"], "sensorId": key, "streamId": key, "media_type": "video", "duration": value.get("duration", 1.0)}]} for key, value in records.items()]
+    local = [{key: [{"name": value["filename"], "sensorId": key, "streamId": key, "media_type": "video", "duration": value.get("duration", 1.0)}]} for key, value in records.items()]
+    try:
+        with urllib.request.urlopen(f"{NVSTREAMER_URL}/vst/api/v1/live/streams", timeout=2) as response:
+            remote = json.loads(response.read().decode("utf-8"))
+        for item in remote if isinstance(remote, list) else []:
+            sensor_id = item.get("sensorId") or item.get("streamId")
+            if sensor_id and not any(sensor_id in entry for entry in local):
+                local.append({sensor_id: [item]})
+    except (OSError, ValueError, json.JSONDecodeError):
+        pass
+    return local
+
+@app.get("/vst/api/v1/live/streams")
+def live_streams():
+    return streams()
 
 @app.get("/vst/api/v1/storage/file/{sensor_id}/url")
 def file_url(sensor_id: str):

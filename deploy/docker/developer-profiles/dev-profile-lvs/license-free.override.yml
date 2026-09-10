@@ -21,6 +21,7 @@ services:
     network_mode: host
     environment:
       VST_VIDEO_ROOT: /data/videos
+      NVSTREAMER_URL: ${LICENSE_FREE_NVSTREAMER_URL:-http://127.0.0.1:31000}
     volumes:
       - ./data-dir/videos/dev-profile-lvs:/data/videos
     healthcheck:
@@ -65,8 +66,30 @@ services:
   vss-ui:
     image: ${VSS_UI_IMAGE:-vss-ui-local:3.2.0}
 
+  # License-free replacement for the NVIDIA NVStreamer image.  It exposes the
+  # dashboard on 31000 and publishes uploaded files to the shared MediaMTX
+  # RTSP server on 8554.
   nvstreamer-lvs:
-    image: ${NVSTREAMER_IMAGE:-vss-nvstreamer-local:3.2.1}
+    build:
+      # This compose file lives four levels below the repository root.
+      context: ../../../../services/analytics/nvstreamer-local
+    image: ${NVSTREAMER_LOCAL_IMAGE:-vss-nvstreamer-local:dev}
+    container_name: vss-nvstreamer-local
+    network_mode: "host"
+    environment:
+      NVSTREAMER_VIDEO_ROOT: /data/videos
+      NVSTREAMER_RTSP_HOST: ${NVSTREAMER_RTSP_HOST:-127.0.0.1}
+      NVSTREAMER_RTSP_PORT: ${NVSTREAMER_RTSP_PORT:-8554}
+    volumes:
+      - ./data-dir/videos/dev-profile-lvs:/data/videos
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:31000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    # The NVIDIA service waits for Kafka; this replacement only needs MediaMTX.
+    depends_on: []
 
   # The proprietary Video Analytics API image is unavailable without NGC
   # access. This local read-only replacement serves the Alerts UI on 8081.
