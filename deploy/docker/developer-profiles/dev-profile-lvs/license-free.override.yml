@@ -78,7 +78,7 @@ services:
   # RTSP server on 8554.
   nvstreamer-lvs:
     build:
-      # This compose file lives four levels below the repository root.
+      # Compose resolves this path from deploy/docker/.
       context: ../../services/analytics/nvstreamer-local
     image: ${NVSTREAMER_LOCAL_IMAGE:-vss-nvstreamer-local:dev}
     container_name: vss-nvstreamer-local
