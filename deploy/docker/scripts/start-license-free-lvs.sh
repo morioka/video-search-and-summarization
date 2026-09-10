@@ -76,9 +76,17 @@ echo "Starting MediaMTX, local NVStreamer, Storage and Agent..."
     -f compose.yml \
     -f "$PROFILE_DIR/license-free.override.yml" \
     up -d vss-video-analytics-api
+  # Start the UI without traversing optional proprietary dependencies. The
+  # UI image must already be available locally (or be supplied via VSS_UI_IMAGE).
+  docker compose \
+    --env-file "$ENV_FILE" \
+    -f compose.yml \
+    -f "$PROFILE_DIR/license-free.override.yml" \
+    up -d --no-deps vss-ui
 )
 wait_for_http "http://127.0.0.1:8001/health" "VSS Agent"
 wait_for_http "http://127.0.0.1:7777/video-analytics-api/incidents?maxResultSize=1" "Alerts API"
+wait_for_http "http://127.0.0.1:3000/" "VSS UI"
 
 echo "Starting Alert Bridge with the profile Kafka..."
 if ! docker start alert-bridge-redis >/dev/null 2>&1; then
