@@ -15,7 +15,7 @@ services:
 
   vss-vst-storage-local:
     build:
-      context: ../../services/analytics/vst-storage-local
+      context: ../../../../services/analytics/vst-storage-local
     image: ${VST_STORAGE_LOCAL_IMAGE:-vss-vst-storage-local:dev}
     container_name: vss-vst-storage-local
     network_mode: host
@@ -96,7 +96,7 @@ services:
   vss-video-analytics-api:
     build:
       # Compose project directory is deploy/docker; implementation lives at repo/services.
-      context: ../../services/analytics/video-analytics-api-local
+      context: ../../../../services/analytics/video-analytics-api-local
     image: ${VIDEO_ANALYTICS_API_IMAGE:-vss-video-analytics-api-local:dev}
     network_mode: "host"
     environment:
