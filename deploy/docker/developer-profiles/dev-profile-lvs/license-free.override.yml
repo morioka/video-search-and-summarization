@@ -82,6 +82,7 @@ services:
       context: ../../../../services/analytics/nvstreamer-local
     image: ${NVSTREAMER_LOCAL_IMAGE:-vss-nvstreamer-local:dev}
     container_name: vss-nvstreamer-local
+    entrypoint: ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "31000"]
     network_mode: "host"
     environment:
       NVSTREAMER_VIDEO_ROOT: /data/videos
