@@ -57,6 +57,13 @@ services:
       vss-vst-storage-local:
         condition: service_healthy
 
+  # Public RTSP/WebRTC server shared by the local NVStreamer publisher.
+  mediamtx:
+    image: ${MEDIAMTX_IMAGE:-bluenviron/mediamtx:latest}
+    container_name: vss-mediamtx
+    network_mode: "host"
+    restart: unless-stopped
+
   vss-va-mcp:
     image: ${VSS_AGENT_IMAGE:-vss-agent-local:3.2.5}
     environment:
@@ -89,7 +96,9 @@ services:
       retries: 5
       start_period: 10s
     # The NVIDIA service waits for Kafka; this replacement only needs MediaMTX.
-    depends_on: []
+    depends_on:
+      mediamtx:
+        condition: service_started
 
   # The proprietary Video Analytics API image is unavailable without NGC
   # access. This local read-only replacement serves the Alerts UI on 8081.

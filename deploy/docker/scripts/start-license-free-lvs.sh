@@ -52,14 +52,15 @@ else
 fi
 wait_for_http "http://127.0.0.1:8018/v1/health/ready" "RT-VLM"
 
-echo "Starting local Storage and Agent..."
+echo "Starting MediaMTX, local NVStreamer, Storage and Agent..."
 (
   cd "$DEPLOY_DIR"
   docker compose \
     --env-file "$ENV_FILE" \
     -f compose.yml \
     -f "$PROFILE_DIR/license-free.override.yml" \
-    up -d vss-vst-storage-local
+    up -d mediamtx nvstreamer-lvs vss-vst-storage-local
+  wait_for_http "http://127.0.0.1:31000/health" "local NVStreamer"
   wait_for_http "http://127.0.0.1:31001/health" "local VST storage"
   # The base profile declares the NVIDIA RT-VLM as an optional dependency.
   # Do not let Compose pull that image after the local RT-VLM is ready.
