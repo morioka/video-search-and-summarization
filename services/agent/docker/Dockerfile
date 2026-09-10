@@ -1,6 +1,7 @@
 # Multi-architecture Dockerfile for production builds (AMD64/ARM64)
 ARG USER_ID=1000
 ARG GROUP_ID=1000
+ARG RUNTIME_BASE=nvcr.io/nvidia/distroless/python:3.13-v3.1.7
 
 # Builder stage - need this since distroless has no package manager
 FROM python:3.13-bookworm AS builder
@@ -117,8 +118,9 @@ RUN apt-get update && \
     dpkg-deb -x libssl3.deb /patches/libssl3-extracted && \
     rm -rf /var/lib/apt/lists/*
 
-# Runtime stage - using NVIDIA distroless production image (supports AMD64 and ARM64)
-FROM nvcr.io/nvidia/distroless/python:3.13-v3.1.7 AS runtime
+# Runtime stage. Keep the production default, but allow a generic Python base
+# for license-free builds (e.g. --build-arg RUNTIME_BASE=python:3.13-slim-bookworm).
+FROM ${RUNTIME_BASE} AS runtime
 ARG USER_ID=1000
 ARG GROUP_ID=1000
 ARG TARGETPLATFORM

@@ -42,3 +42,8 @@ Apache-2.0のソースコードであっても、実行時にNVIDIA配布バイ�
 それぞれを`python:3.x`または`node:22`等の汎用ベースから再構築する作業が残る。
 現時点では、VLM推論、NVStreamer、VST Storage、Alerts API/Bridgeの主要経路を
 NVIDIA配布アプリイメージなしで再現できることを優先している。
+
+Agentについては、`services/agent/docker/Dockerfile`の`RUNTIME_BASE`をbuild引数化
+し、`python:3.13-slim-bookworm`を指定した汎用イメージのビルドを確認した。
+依存233パッケージの導入、codecライブラリ検査、`vss_agents`・FastAPI・LiteLLMの
+importは成功している。実サービスとしてのAgent起動置換は、次段階で疎通検証する。
