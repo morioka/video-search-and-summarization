@@ -506,3 +506,16 @@ release/3.0.1の依存定義には`langchain-nvidia-ai-endpoints`と`nvidia-rag`
 - 現在の`vss-lvs-local`は保存動画登録・キャプション・検索連携に必要なVIA互換APIを限定実装しているが、VIA内部のパイプライン実行エンジンを再現したものではない。
 - 将来、完全なNVIDIA実行環境なしを目指す場合は、必要なVIA外部APIを棚卸しし、汎用Python/CUDA環境上の互換サービスへ段階的に移行する。
 - 未使用のVIA高度機能まで再実装せず、保存動画検索・要約・Alertなど主要ユースケースに必要な範囲を優先する。
+
+#### VIA互換APIの最小対象
+
+| API群 | 主な呼び出し元 | 現状 |
+|---|---|---|
+| `POST/GET/DELETE /v1/files` | Agent、保存動画キャプション | `vss-lvs-local`で実装済み |
+| `POST /v1/generate_captions` | Agent、LVS MCP | ローカルRT-VLM/LVS互換サービスで実装済み |
+| `POST /v1/streams/add`、一覧、削除 | AgentのRTSP登録、疑似RTSPデモ | OpenAI版RT-VLMで最小実装済み |
+| `GET /v1/models`、`/v1/ready` | 起動スクリプト、ヘルスチェック | 実装済み |
+| `POST /v1/generate_vlm_captions` | 保存動画の直接VLM経路 | ローカルLVS互換サービスで実装済み |
+| `POST /v1/stream_summarize`等 | 高度なVIAストリーミング | 現時点の主要経路では未使用 |
+
+完全除去作業では、まず上記の実装済みAPIでAgent検索・要約・AlertのE2Eを維持できることを確認する。未使用の高度なストリーム要約APIは、利用箇所が発生するまで再実装対象にしない。
