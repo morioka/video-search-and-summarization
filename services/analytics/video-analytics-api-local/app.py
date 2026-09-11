@@ -6,8 +6,16 @@ from typing import Any
 
 from elasticsearch import Elasticsearch
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="VSS Video Analytics API (local)")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[origin.strip() for origin in os.getenv("CORS_ALLOW_ORIGINS", "*").split(",") if origin.strip()],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 es = Elasticsearch(os.getenv("ELASTICSEARCH_URL", "http://127.0.0.1:9200"))
 
 
