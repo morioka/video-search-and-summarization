@@ -92,6 +92,9 @@ echo "Starting MediaMTX, local RT-CV, NVStreamer, Storage and Agent..."
     -f compose.yml \
     -f "$PROFILE_DIR/license-free.override.yml" \
     up -d --no-deps "${agent_build_args[@]}" vss-agent
+  # The API uses a fixed Compose-generated name. Remove a stale container
+  # left by a previous project invocation so startup remains repeatable.
+  docker rm -f mdx-vss-video-analytics-api-1 >/dev/null 2>&1 || true
   docker compose \
     --env-file "$ENV_FILE" \
     -f compose.yml \
@@ -99,6 +102,7 @@ echo "Starting MediaMTX, local RT-CV, NVStreamer, Storage and Agent..."
     up -d vss-video-analytics-api
   # Start the UI without traversing optional proprietary dependencies. The
   # UI image must already be available locally (or be supplied via VSS_UI_IMAGE).
+  docker rm -f vss-agent-ui >/dev/null 2>&1 || true
   docker compose \
     --env-file "$ENV_FILE" \
     -f compose.yml \
@@ -110,20 +114,12 @@ wait_for_http "http://127.0.0.1:7777/video-analytics-api/incidents?maxResultSize
 wait_for_http "http://127.0.0.1:3000/" "VSS UI"
 
 echo "Starting Alert Bridge with the profile Kafka..."
-if ! docker start alert-bridge-redis >/dev/null 2>&1; then
-  docker compose \
-    --env-file "$ENV_FILE" \
-    -f "$ROOT_DIR/services/alert/docker-compose.local.yml" \
-    -f "$ROOT_DIR/services/alert/docker-compose.external-kafka.yml" \
-    up -d alert-bridge-redis
-fi
-if ! docker start alert-bridge >/dev/null 2>&1; then
-  docker compose \
-    --env-file "$ENV_FILE" \
-    -f "$ROOT_DIR/services/alert/docker-compose.local.yml" \
-    -f "$ROOT_DIR/services/alert/docker-compose.external-kafka.yml" \
-    up -d alert-bridge
-fi
+docker rm -f alert-bridge >/dev/null 2>&1 || true
+docker compose \
+  --env-file "$ENV_FILE" \
+  -f "$ROOT_DIR/services/alert/docker-compose.local.yml" \
+  -f "$ROOT_DIR/services/alert/docker-compose.external-kafka.yml" \
+  up -d --build alert-bridge-redis alert-bridge
 wait_for_http "http://127.0.0.1:9080/health" "Alert Bridge"
 
 echo "Local license-free LVS services started."

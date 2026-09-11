@@ -488,3 +488,13 @@ release/3.0.1の依存定義には`langchain-nvidia-ai-endpoints`と`nvidia-rag`
 - Alertの設定ロードに`VLM_BASE_URL`、`VLM_MODEL`、`VLM_API_KEY`の環境変数上書きを追加した。NIM、ローカルvLLM/Ollama、OpenAI/Qwen等の外部OpenAI互換APIを同じイメージで切り替えられる。
 - LLM側は既に`LLM_MODEL_TYPE`、`LLM_BASE_URL`、`LLM_NAME`、`OPENAI_API_KEY`で独立切替できることを確認した。VLM側の`VLM_MODEL_TYPE`/`VLM_BASE_URL`と組み合わせ、LLMだけ外部、VLMだけローカルなどの構成を選べる。READMEにも構成表を追加した。
 - 将来のRTVI-Embed置換候補として、EmbeddingGemmaはテキスト専用の可能性があるため、Qwen3-VL-EmbeddingをvLLMのOpenAI互換APIで提供する案を記録する。性能評価より先に、画像・動画・テキストの同一埋め込み空間、ベクトル次元・正規化、モデルおよび派生物のライセンス条件を確認する。現行のキャプション全文検索経路は変更しない。
+
+### 2026-09-11 RTSPアラート経路の到達確認
+
+- 疑似RTSPデモにMediaMTXの配信準備待ちと、配信終了後の非同期処理待ち（`GRACE_SECONDS`）を追加した。
+- RT-VLMのストリーム状態APIに、キャプチャ状態、チャンク番号、最後のVLM応答、AlertSink送信結果を追加した。
+- RTSPコンテナ内からFFmpegで10秒チャンクを取得できることを確認した。RTSPネットワーク経路は正常である。
+- AlertSinkのイベントに`info.media_urls`と`info.media_type`を追加し、Alertエンリッチャーがローカル動画を解決できるようにした。
+- Alert Bridgeの古いコンテナを再利用すると動画ボリュームが反映されないため、起動スクリプトでAlert Bridge/Redisを再作成するようにした。
+- 実動画で、RTSP配信→RT-VLM→AlertSink→Alert Bridge→VLMエンリッチャー→`mdx-vlm-incidents`→Alerts APIの一連の経路を確認した。Alerts APIで`VLM Detected Event`が1件取得できた。
+- `verify-license-free-lvs.sh` は全項目成功。RTSPデモのアラート件数確認にはVLM処理時間を考慮して`GRACE_SECONDS`を設定する。

@@ -46,7 +46,14 @@ class AlertSink:
         }
         if self.video_path:
             payload["videoPath"] = self.video_path
+            # The Alert Bridge accepts NvSchema camelCase, while the local
+            # VLM pass-through worker also looks for these snake_case/media
+            # aliases when resolving a file source.
+            payload["video_path"] = self.video_path
+            payload["media_urls"] = [self.video_path]
             payload["info"]["video_path"] = self.video_path
+            payload["info"]["media_urls"] = [self.video_path]
+            payload["info"]["media_type"] = "video"
         # Keep this opt-in bridge synchronous; the Alert endpoint is a short
         # local request and asyncio thread execution is unreliable under WSL.
         self._post(payload)

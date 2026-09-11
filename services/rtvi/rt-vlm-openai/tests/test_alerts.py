@@ -25,3 +25,16 @@ async def test_alert_sink_cooldown(monkeypatch: pytest.MonkeyPatch) -> None:
     assert await sink.emit_if_match(stream_id="s", content="fire detected", start="0", end="1")
     assert not await sink.emit_if_match(stream_id="s", content="fire detected again", start="1", end="2")
     assert len(posted) == 1
+
+
+@pytest.mark.asyncio
+async def test_alert_sink_includes_local_media_aliases(monkeypatch: pytest.MonkeyPatch) -> None:
+    sink = AlertSink("http://alert", "stove", video_path="/media/konro_inspection.mp4")
+    posted: list[dict] = []
+    monkeypatch.setattr(sink, "_post", posted.append)
+
+    assert await sink.emit_if_match(stream_id="s", content="stove visible", start="0", end="1")
+    payload = posted[0]
+    assert payload["videoPath"] == "/media/konro_inspection.mp4"
+    assert payload["info"]["media_urls"] == ["/media/konro_inspection.mp4"]
+    assert payload["info"]["media_type"] == "video"

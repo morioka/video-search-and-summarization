@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import multiprocessing
 import subprocess
 import tempfile
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse, urlunparse
@@ -20,9 +20,20 @@ from .video import VideoChunk, VideoProcessor
 logger = logging.getLogger(__name__)
 
 
-def _capture_chunk(command: list[str]) -> None:
-    """Run FFmpeg outside the API event loop."""
-    subprocess.run(command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+def _capture_chunk(command: list[str], timeout: float) -> int:
+    """Run FFmpeg in a worker thread and return its exit code."""
+    try:
+        result = subprocess.run(
+            command,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+            timeout=timeout,
+        )
+        return result.returncode
+    except subprocess.TimeoutExpired:
+        return 124
 
 
 @dataclass
@@ -32,6 +43,12 @@ class StreamEntry:
     description: str
     sensor_name: str
     task: asyncio.Task[None]
+    status: str = "starting"
+    chunk_index: int = 0
+    last_error: str = ""
+    last_content: str = ""
+    last_alert_emitted: bool = False
+    last_alert_error: str = ""
 
 
 class StreamRegistry:
@@ -85,6 +102,12 @@ class StreamRegistry:
                     "description": e.description,
                     "sensor_name": e.sensor_name,
                     "inference_active": not e.task.done(),
+                    "status": e.status,
+                    "chunk_index": e.chunk_index,
+                    "last_error": e.last_error,
+                    "last_content": e.last_content,
+                    "last_alert_emitted": e.last_alert_emitted,
+                    "last_alert_error": e.last_alert_error,
                 }
                 for e in self._entries.values()
             ]
@@ -100,6 +123,10 @@ class StreamRegistry:
 
     async def _run(self, stream_id: str, url: str, description: str, sensor_name: str) -> None:
         url = _container_reachable_url(url)
+        async with self._lock:
+            entry = self._entries.get(stream_id)
+        if entry is None:
+            return
         offset = 0.0
         chunk_index = 0
         retry_delay = 2.0
@@ -117,18 +144,30 @@ class StreamRegistry:
                         command += ["-analyzeduration", "10M", "-probesize", "10M"]
                     command += ["-i", url, "-t", str(capture_seconds), "-an"]
                     command += ["-c:v", "libx264" if url.startswith("rtsp://") else "copy", str(path)]
-                    process = multiprocessing.Process(target=_capture_chunk, args=(command,), daemon=True)
-                    process.start()
+                    capture_started = time.monotonic()
+                    entry.status = "capturing"
+                    entry.chunk_index = chunk_index
+                    capture_task = asyncio.create_task(asyncio.to_thread(_capture_chunk, command, capture_seconds + 30))
+                    capture_deadline = time.monotonic() + capture_seconds + 35
                     try:
-                        while process.is_alive():
+                        while not capture_task.done():
+                            if time.monotonic() >= capture_deadline:
+                                capture_task.cancel()
+                                raise RuntimeError(f"FFmpeg capture timed out after {capture_seconds + 30}s")
                             await asyncio.sleep(0.1)
                     except asyncio.CancelledError:
-                        process.terminate()
-                        process.join(timeout=5)
+                        capture_task.cancel()
                         raise
-                    process.join()
-                    if process.exitcode != 0 or not path.exists() or path.stat().st_size == 0:
-                        raise RuntimeError(f"FFmpeg capture failed with exit code {process.exitcode}")
+                    returncode = capture_task.result()
+                    if returncode != 0 or not path.exists() or path.stat().st_size == 0:
+                        raise RuntimeError(f"FFmpeg capture failed with exit code {returncode}")
+                    logger.info(
+                        "stream capture completed stream_id=%s chunk=%s elapsed=%.1fs bytes=%s",
+                        stream_id,
+                        chunk_index,
+                        time.monotonic() - capture_started,
+                        path.stat().st_size,
+                    )
                     metadata = await self._processor.probe(path)
                     duration = metadata.duration
                     info = FileInfo(
@@ -144,6 +183,8 @@ class StreamRegistry:
                         prompt=description or "Describe events and safety hazards.",
                         num_frames_per_second_or_fixed_frames_chunk=self._frames,
                     )
+                    inference_started = time.monotonic()
+                    entry.status = "inferring"
                     async with self._semaphore:
                         from .app import _process_chunk
 
@@ -156,20 +197,41 @@ class StreamRegistry:
                             backend=self._backend,
                             query_id=uuid4(),
                         )
+                    logger.info(
+                        "stream inference completed stream_id=%s chunk=%s elapsed=%.1fs",
+                        stream_id,
+                        chunk_index,
+                        time.monotonic() - inference_started,
+                    )
                     chunk = response["chunk_responses"][0]
                     chunk["start_time"] = f"{offset:.3f}".rstrip("0").rstrip(".")
                     chunk["end_time"] = f"{offset + duration:.3f}".rstrip("0").rstrip(".")
+                    content = str(chunk.get("content", ""))
+                    entry.last_content = content[:1000]
+                    logger.info(
+                        "stream chunk completed stream_id=%s chunk=%s duration=%.1fs content=%r",
+                        stream_id,
+                        chunk_index,
+                        duration,
+                        content[:240],
+                    )
                     self._publisher.publish(
                         stream_id=stream_id, chunk=chunk, model=response["model"], request_id=response["id"]
                     )
                     try:
-                        await self._alert_sink.emit_if_match(
+                        entry.status = "publishing"
+                        emitted = await self._alert_sink.emit_if_match(
                             stream_id=stream_id,
-                            content=str(chunk.get("content", "")),
+                            content=content,
                             start=str(chunk.get("start_time", "")),
                             end=str(chunk.get("end_time", "")),
                         )
-                    except Exception:
+                        entry.last_alert_emitted = emitted
+                        entry.last_alert_error = ""
+                        logger.info("stream alert evaluation stream_id=%s emitted=%s", stream_id, emitted)
+                    except Exception as exc:
+                        entry.last_alert_emitted = False
+                        entry.last_alert_error = str(exc)[:500]
                         logger.exception("alert bridge request failed for %s", stream_id)
                     offset += duration
                     chunk_index += 1
@@ -177,6 +239,8 @@ class StreamRegistry:
             except asyncio.CancelledError:
                 raise
             except Exception:
+                entry.status = "retrying"
+                entry.last_error = "stream worker failed; see service logs"
                 logger.exception("stream worker failed for %s; retrying in %.1fs", stream_id, retry_delay)
                 await asyncio.sleep(retry_delay)
                 retry_delay = min(retry_delay * 2.0, 30.0)
