@@ -1,0 +1,19 @@
+# Replace the NVIDIA perception workload for the Alerts profile.
+services:
+  perception-alerts:
+    build:
+      context: ../../services/analytics/rt-cv-local
+    image: ${RTCV_LOCAL_IMAGE:-vss-rt-cv-local:dev}
+    container_name: vss-rtvi-cv
+    entrypoint: ["uvicorn"]
+    command: ["app:app", "--host", "0.0.0.0", "--port", "9000"]
+    runtime: null
+    deploy: {}
+    volumes:
+      - ${VSS_DATA_DIR:-./data-dir}/videos/dev-profile-alerts:/data/videos:ro
+    environment:
+      RTCV_VIDEO_ROOT: /data/videos
+      RTCV_KAFKA_BOOTSTRAP_SERVERS: ${RTCV_KAFKA_BOOTSTRAP_SERVERS:-127.0.0.1:9092}
+      RTCV_ELASTICSEARCH_URL: ${ELASTICSEARCH_URL:-http://127.0.0.1:9200}
+      RTCV_ALERT_TOPIC: ${RTCV_ALERT_TOPIC:-mdx-alerts}
+      RTCV_INCIDENT_TOPIC: ${RTCV_INCIDENT_TOPIC:-mdx-incidents}
