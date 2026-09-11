@@ -1,4 +1,5 @@
 fastapi>=0.115,<1
 kafka-python-ng>=2.2.3
+onnxruntime>=1.18,<2
 opencv-python-headless>=4.10,<5
 uvicorn[standard]>=0.34,<1

@@ -97,10 +97,15 @@ Dockerコンテナでのhealth/models応答を確認済みである。
 `services/analytics/rt-cv-local`を追加した。既存RT-CVの
 `/api/v1/stream/add`、`/api/v1/stream/remove`、`/api/v1/stream/list`契約を受け、
 保存動画または疑似ストリームを登録できる。初期版の検出器は品質検証用の決定的な
-OpenCV HOGによるCPU人物検出を標準とし、検出できない場合は設定でデモイベントへ
+OpenCV HOGによるCPU人物検出に加え、`RTCV_ONNX_MODEL`でYOLO互換またはApache-2.0
+のRT-DETR R18 ONNXモデルを指定できる。検出できない場合は設定でデモイベントへ
 フォールバックできる。DeepStream/CUDA/NVIDIA共有ライブラリを使用しない。
 
 イベントは正規化JSONとしてKafkaへ送信し、設定JSONの簡易ルールに一致した場合は
 `mdx-alerts`/`mdx-incidents`へも送信する。Elasticsearchへの直接保存にも対応する。
 `dev-profile-lvs/license-free.override.yml`から`vss-rt-cv-local:dev`として起動確認済み。
 実推論モデル、実RTSPデコード、OSDは後続課題である。
+
+RT-DETR R18 COCO（`AnnotateIt/rtdetr-r18vd-coco-onnx`）を外部配置して
+ONNX Runtime CPU推論を行い、`oven`クラスの検出、信頼度、bboxを確認済みである。
+モデルは82MBのためリポジトリへは同梱しない。

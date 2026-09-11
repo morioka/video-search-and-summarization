@@ -21,7 +21,8 @@ INTERVAL = float(os.getenv("RTCV_EVENT_INTERVAL_SEC", "5"))
 DETECTOR = os.getenv("RTCV_DETECTOR", "auto").lower()
 ONNX_MODEL = os.getenv("RTCV_ONNX_MODEL", "")
 ONNX_INPUT_SIZE = int(os.getenv("RTCV_ONNX_INPUT_SIZE", "640"))
-LABELS = [label.strip() for label in os.getenv("RTCV_LABELS", "person, bicycle, car, motorcycle, airplane, bus, train, truck, boat").split(",")]
+COCO_LABELS = "person,bicycle,car,motorcycle,airplane,bus,train,truck,boat,traffic light,fire hydrant,stop sign,parking meter,bench,bird,cat,dog,horse,sheep,cow,elephant,bear,zebra,giraffe,backpack,umbrella,handbag,tie,suitcase,frisbee,skis,snowboard,sports ball,kite,baseball bat,baseball glove,skateboard,surfboard,tennis racket,bottle,wine glass,cup,fork,knife,spoon,bowl,banana,apple,sandwich,orange,broccoli,carrot,hot dog,pizza,donut,cake,chair,couch,potted plant,bed,dining table,toilet,tv,laptop,mouse,remote,keyboard,cell phone,microwave,oven,toaster,sink,refrigerator,book,clock,vase,scissors,teddy bear,hair drier,toothbrush"
+LABELS = [label.strip() for label in os.getenv("RTCV_LABELS", COCO_LABELS).split(",")]
 DEMO_FALLBACK = os.getenv("RTCV_DEMO_FALLBACK", "true").lower() == "true"
 KAFKA_SERVERS = os.getenv("RTCV_KAFKA_BOOTSTRAP_SERVERS", "")
 RAW_TOPIC = os.getenv("RTCV_RAW_TOPIC", "ds-perception")
@@ -64,6 +65,7 @@ rules: list[Rule] = []
 hog = cv2.HOGDescriptor()
 hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
 onnx_net: cv2.dnn_Net | None = None
+onnx_session: Any = None
 
 
 def _load_rules() -> list[Rule]:
@@ -143,35 +145,54 @@ def _objects(stream: dict[str, Any], offset: float) -> tuple[list[dict[str, Any]
     image = _frame(Path(stream["path"]), offset)
     if image is not None and DETECTOR in {"onnx", "auto"} and ONNX_MODEL:
         try:
-            global onnx_net
-            if onnx_net is None:
-                onnx_net = cv2.dnn.readNetFromONNX(ONNX_MODEL)
-            blob = cv2.dnn.blobFromImage(image, 1 / 255.0, (ONNX_INPUT_SIZE, ONNX_INPUT_SIZE), swapRB=True, crop=False)
-            onnx_net.setInput(blob)
-            output = onnx_net.forward()
-            rows = output.reshape(output.shape[-2], output.shape[-1]) if output.ndim >= 2 else output.reshape(1, -1)
-            if rows.shape[0] < rows.shape[1] and rows.shape[0] <= 256:
-                rows = rows.T
+            global onnx_net, onnx_session
             height, width = image.shape[:2]
             detected = []
-            for index, row in enumerate(rows):
-                if len(row) < 6:
-                    continue
-                scores = row[4:]
-                class_index = int(np.argmax(scores))
-                confidence = float(scores[class_index])
-                if confidence < 0.25:
-                    continue
-                cx, cy, box_width, box_height = [float(value) for value in row[:4]]
-                # YOLO ONNX exports use either normalized or input-pixel boxes.
-                scale_x = width if max(cx, cy, box_width, box_height) <= 2 else width / ONNX_INPUT_SIZE
-                scale_y = height if max(cx, cy, box_width, box_height) <= 2 else height / ONNX_INPUT_SIZE
-                x1, y1 = (cx - box_width / 2) * scale_x, (cy - box_height / 2) * scale_y
-                x2, y2 = (cx + box_width / 2) * scale_x, (cy + box_height / 2) * scale_y
-                detected.append({"id": f"object-{index}", "type": LABELS[class_index] if class_index < len(LABELS) else f"class-{class_index}", "confidence": confidence, "bbox": [max(0, x1 / width), max(0, y1 / height), min(1, x2 / width), min(1, y2 / height)]})
+            if onnx_session is None:
+                import onnxruntime
+                onnx_session = onnxruntime.InferenceSession(ONNX_MODEL, providers=["CPUExecutionProvider"])
+            rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            resized = cv2.resize(rgb, (ONNX_INPUT_SIZE, ONNX_INPUT_SIZE), interpolation=cv2.INTER_LINEAR)
+            input_name = onnx_session.get_inputs()[0].name
+            outputs = onnx_session.run(None, {input_name: np.transpose(resized.astype(np.float32) / 255.0, (2, 0, 1))[None, ...]})
+            logits = next((value for value in outputs if value.ndim == 3 and value.shape[-1] == 80), None)
+            boxes = next((value for value in outputs if value.ndim == 3 and value.shape[-1] == 4), None)
+            if logits is not None and boxes is not None:
+                scores = 1 / (1 + np.exp(-logits[0]))
+                for index, score_row in enumerate(scores):
+                    class_index = int(np.argmax(score_row))
+                    confidence = float(score_row[class_index])
+                    if confidence < 0.30:
+                        continue
+                    cx, cy, box_width, box_height = [float(value) for value in boxes[0][index]]
+                    x1, y1 = cx - box_width / 2, cy - box_height / 2
+                    x2, y2 = cx + box_width / 2, cy + box_height / 2
+                    detected.append({"id": f"object-{index}", "type": LABELS[class_index] if class_index < len(LABELS) else f"class-{class_index}", "confidence": confidence, "bbox": [max(0, x1), max(0, y1), min(1, x2), min(1, y2)]})
+            else:
+                if onnx_net is None:
+                    onnx_net = cv2.dnn.readNetFromONNX(ONNX_MODEL)
+                    onnx_net.setInput(cv2.dnn.blobFromImage(image, 1 / 255.0, (ONNX_INPUT_SIZE, ONNX_INPUT_SIZE), swapRB=True, crop=False))
+                output = onnx_net.forward()
+                rows = output.reshape(output.shape[-2], output.shape[-1]) if output.ndim >= 2 else output.reshape(1, -1)
+                if rows.shape[0] < rows.shape[1] and rows.shape[0] <= 256:
+                    rows = rows.T
+                for index, row in enumerate(rows):
+                    if len(row) < 6:
+                        continue
+                    scores = row[4:]
+                    class_index = int(np.argmax(scores))
+                    confidence = float(scores[class_index])
+                    if confidence < 0.25:
+                        continue
+                    cx, cy, box_width, box_height = [float(value) for value in row[:4]]
+                    scale_x = width if max(cx, cy, box_width, box_height) <= 2 else width / ONNX_INPUT_SIZE
+                    scale_y = height if max(cx, cy, box_width, box_height) <= 2 else height / ONNX_INPUT_SIZE
+                    x1, y1 = (cx - box_width / 2) * scale_x, (cy - box_height / 2) * scale_y
+                    x2, y2 = (cx + box_width / 2) * scale_x, (cy + box_height / 2) * scale_y
+                    detected.append({"id": f"object-{index}", "type": LABELS[class_index] if class_index < len(LABELS) else f"class-{class_index}", "confidence": confidence, "bbox": [max(0, x1 / width), max(0, y1 / height), min(1, x2 / width), min(1, y2 / height)]})
             if detected:
                 return detected, "onnx"
-        except (cv2.error, OSError, ValueError):
+        except (cv2.error, OSError, ValueError, ImportError, RuntimeError):
             pass
         if DETECTOR == "onnx" and not DEMO_FALLBACK:
             return [], "onnx"
