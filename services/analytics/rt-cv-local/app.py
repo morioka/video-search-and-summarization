@@ -212,6 +212,12 @@ def _objects(stream: dict[str, Any], offset: float) -> tuple[list[dict[str, Any]
 
 def _event(stream: dict[str, Any], offset: float) -> dict[str, Any]:
     objects, detector = _objects(stream, offset)
+    # Elasticsearch creates a concrete numeric mapping on first write. Keep
+    # every bbox coordinate as a float so boundary values (0/1) do not turn
+    # into integer fields and conflict with existing VSS mappings.
+    for detected in objects:
+        if isinstance(detected.get("bbox"), list):
+            detected["bbox"] = [float(value) for value in detected["bbox"]]
     now = datetime.now(timezone.utc).isoformat()
     return {
         "eventId": str(uuid4()),

@@ -1054,6 +1054,17 @@ class AnomalyEnhancer(AsyncDispatchMixin, AsyncExternalIOMixin, AsyncVLMModeMixi
             try:
                 user_prompt, system_prompt = self.prompt_manager.get_prompts_for_message(message)
 
+                # Local/license-free events may not have a per-category prompt
+                # seeded in AlertConfigStore. Keep the pass-through path usable
+                # with a conservative generic verification request; the normal
+                # VLM path remains strict about missing prompts.
+                if not user_prompt:
+                    user_prompt = os.getenv(
+                        'ALERT_AGENT_DEFAULT_USER_PROMPT',
+                        'Review this video for the configured safety condition. '
+                        'Return a concise verification result and explanation.',
+                    )
+
                 if os.getenv('LOG_VERBOSE_PROMPTS', 'false').lower() in ('1', 'true', 'yes'):
                     logger.debug(f"User Prompt: {user_prompt}\nSystem Prompt: {system_prompt}")
 
