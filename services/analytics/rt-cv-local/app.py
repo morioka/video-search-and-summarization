@@ -13,9 +13,13 @@ from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
+import cv2
+import numpy as np
 
 ROOT = Path(os.getenv("RTCV_VIDEO_ROOT", "/data/videos"))
 INTERVAL = float(os.getenv("RTCV_EVENT_INTERVAL_SEC", "5"))
+DETECTOR = os.getenv("RTCV_DETECTOR", "hog").lower()
+DEMO_FALLBACK = os.getenv("RTCV_DEMO_FALLBACK", "true").lower() == "true"
 KAFKA_SERVERS = os.getenv("RTCV_KAFKA_BOOTSTRAP_SERVERS", "")
 RAW_TOPIC = os.getenv("RTCV_RAW_TOPIC", "ds-perception")
 ALERT_TOPIC = os.getenv("RTCV_ALERT_TOPIC", "mdx-alerts")
@@ -54,6 +58,8 @@ streams: dict[str, dict[str, Any]] = {}
 tasks: dict[str, asyncio.Task[None]] = {}
 producer: Any = None
 rules: list[Rule] = []
+hog = cv2.HOGDescriptor()
+hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
 
 
 def _load_rules() -> list[Rule]:
@@ -115,7 +121,38 @@ def _index(payload: dict[str, Any], kind: str) -> None:
         return
 
 
+def _frame(path: Path, offset: float) -> np.ndarray | None:
+    try:
+        result = subprocess.run(
+            ["ffmpeg", "-hide_banner", "-loglevel", "error", "-ss", str(offset), "-i", str(path), "-frames:v", "1", "-f", "image2pipe", "-vcodec", "mjpeg", "pipe:1"],
+            capture_output=True, timeout=20, check=True,
+        )
+        image = cv2.imdecode(np.frombuffer(result.stdout, dtype=np.uint8), cv2.IMREAD_COLOR)
+        return image
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return None
+
+
+def _objects(stream: dict[str, Any], offset: float) -> tuple[list[dict[str, Any]], str]:
+    if DETECTOR != "hog" or stream["camera_url"].startswith("rtsp://"):
+        return ([{"id": "object-0", "type": os.getenv("RTCV_DEMO_OBJECT", "person"), "confidence": 1.0, "bbox": [0, 0, 1, 1]}], "demo")
+    image = _frame(Path(stream["path"]), offset)
+    if image is not None:
+        boxes, weights = hog.detectMultiScale(image, winStride=(8, 8), padding=(8, 8), scale=1.05)
+        height, width = image.shape[:2]
+        detected = []
+        for index, (x, y, box_width, box_height) in enumerate(boxes):
+            confidence = float(weights[index]) if index < len(weights) else 0.0
+            detected.append({"id": f"person-{index}", "type": "person", "confidence": max(0.0, min(confidence, 1.0)), "bbox": [x / width, y / height, (x + box_width) / width, (y + box_height) / height]})
+        if detected:
+            return detected, "opencv-hog"
+    if DEMO_FALLBACK:
+        return ([{"id": "object-0", "type": os.getenv("RTCV_DEMO_OBJECT", "person"), "confidence": 1.0, "bbox": [0, 0, 1, 1]}], "demo-fallback")
+    return [], "opencv-hog"
+
+
 def _event(stream: dict[str, Any], offset: float) -> dict[str, Any]:
+    objects, detector = _objects(stream, offset)
     now = datetime.now(timezone.utc).isoformat()
     return {
         "eventId": str(uuid4()),
@@ -124,8 +161,8 @@ def _event(stream: dict[str, Any], offset: float) -> dict[str, Any]:
         "timestamp": now,
         "eventTime": offset,
         "category": "object_detection",
-        "objects": [{"id": "object-0", "type": os.getenv("RTCV_DEMO_OBJECT", "person"), "confidence": 1.0, "bbox": [0, 0, 1, 1]}],
-        "source": "rt-cv-local",
+        "objects": objects,
+        "source": detector,
     }
 
 
@@ -142,8 +179,9 @@ async def _run_stream(stream_id: str) -> None:
     offset = 0.0
     while stream["status"] == "running":
         event = _event(stream, offset)
-        _publish(RAW_TOPIC, event)
-        _index(event, "raw_events")
+        if event["objects"]:
+            _publish(RAW_TOPIC, event)
+            _index(event, "raw_events")
         for rule in rules:
             if _matches(event, rule):
                 alert = {**event, "alertId": event["eventId"], "type": rule.name, "severity": rule.severity, "description": f"{rule.object_type} detected by {rule.name}"}
@@ -215,7 +253,7 @@ async def add_stream(request: StreamRequest) -> dict[str, Any]:
     path = _path_from_url(value.camera_url)
     if not value.camera_url.startswith("rtsp://") and not path.is_file():
         raise HTTPException(404, f"stream file not found: {value.camera_url}")
-    stream = {"camera_id": value.camera_id, "camera_name": value.camera_name or value.camera_id, "camera_url": value.camera_url, "status": "running", "duration": _duration(path) if path.is_file() else 0.0, "source": "rt-cv-local"}
+    stream = {"camera_id": value.camera_id, "camera_name": value.camera_name or value.camera_id, "camera_url": value.camera_url, "path": str(path), "status": "running", "duration": _duration(path) if path.is_file() else 0.0, "source": "rt-cv-local"}
     streams[value.camera_id] = stream
     tasks[value.camera_id] = asyncio.create_task(_run_stream(value.camera_id))
     return stream

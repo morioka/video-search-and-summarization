@@ -97,7 +97,8 @@ Dockerコンテナでのhealth/models応答を確認済みである。
 `services/analytics/rt-cv-local`を追加した。既存RT-CVの
 `/api/v1/stream/add`、`/api/v1/stream/remove`、`/api/v1/stream/list`契約を受け、
 保存動画または疑似ストリームを登録できる。初期版の検出器は品質検証用の決定的な
-デモイベント生成器で、DeepStream/CUDA/NVIDIA共有ライブラリを使用しない。
+OpenCV HOGによるCPU人物検出を標準とし、検出できない場合は設定でデモイベントへ
+フォールバックできる。DeepStream/CUDA/NVIDIA共有ライブラリを使用しない。
 
 イベントは正規化JSONとしてKafkaへ送信し、設定JSONの簡易ルールに一致した場合は
 `mdx-alerts`/`mdx-incidents`へも送信する。Elasticsearchへの直接保存にも対応する。
