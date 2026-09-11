@@ -84,8 +84,18 @@ def _normalize(hit: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _search(sensor_id: str | None, place: str | None, start: str | None, end: str | None, severe: bool = False, query_string: str | None = None) -> dict[str, Any]:
+def _search(
+    sensor_id: str | None,
+    place: str | None,
+    start: str | None,
+    end: str | None,
+    severe: bool = False,
+    query_string: str | None = None,
+    alerts_only: bool = False,
+) -> dict[str, Any]:
     query = _query(sensor_id, place, start, end)
+    if alerts_only:
+        query = {"bool": {"must": [query, {"term": {"documentType.keyword": "alert"}}]}}
     if query_string:
         query = {"bool": {"must": [query, {"query_string": {"query": query_string}}]}}
     if severe:
@@ -136,12 +146,12 @@ def sensor_list() -> list[dict[str, str]]:
 
 @app.get("/alerts")
 def alerts(sensorId: str | None = None, place: str | None = None, fromTimestamp: str | None = None, toTimestamp: str | None = None):
-    return _search(sensorId, place, fromTimestamp, toTimestamp)
+    return _search(sensorId, place, fromTimestamp, toTimestamp, alerts_only=True)
 
 
 @app.get("/alerts/severe")
 def severe_alerts(sensorId: str | None = None, place: str | None = None, fromTimestamp: str | None = None, toTimestamp: str | None = None):
-    return _search(sensorId, place, fromTimestamp, toTimestamp, severe=True)
+    return _search(sensorId, place, fromTimestamp, toTimestamp, severe=True, alerts_only=True)
 
 
 @app.get("/incidents")
@@ -163,4 +173,4 @@ def incidents(
 
 @app.get("/frames/alerts")
 def frame_alerts(sensorId: str | None = None, place: str | None = None, fromTimestamp: str | None = None, toTimestamp: str | None = None):
-    return _search(sensorId, place, fromTimestamp, toTimestamp)
+    return _search(sensorId, place, fromTimestamp, toTimestamp, alerts_only=True)

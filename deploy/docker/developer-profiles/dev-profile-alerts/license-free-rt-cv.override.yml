@@ -1,5 +1,15 @@
 # Replace the NVIDIA perception workload for the Alerts profile.
 services:
+  vss-video-analytics-api-alerts:
+    build:
+      context: ../../services/analytics/video-analytics-api-local
+    image: ${VIDEO_ANALYTICS_API_IMAGE:-vss-video-analytics-api-local:dev}
+    container_name: vss-video-analytics-api
+    network_mode: host
+    command: ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8081"]
+    environment:
+      ELASTICSEARCH_URL: ${ELASTICSEARCH_URL:-http://127.0.0.1:9200}
+
   perception-alerts:
     build:
       context: ../../services/analytics/rt-cv-local
