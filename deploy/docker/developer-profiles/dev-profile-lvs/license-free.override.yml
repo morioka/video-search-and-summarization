@@ -14,6 +14,9 @@ services:
     network_mode: host
     environment:
       RTCV_VIDEO_ROOT: /data/videos
+      RTCV_DETECTOR: ${RTCV_DETECTOR:-auto}
+      RTCV_ONNX_MODEL: ${RTCV_ONNX_MODEL:-}
+      RTCV_LABELS: ${RTCV_LABELS:-person, bicycle, car, motorcycle, airplane, bus, train, truck, boat}
       RTCV_KAFKA_BOOTSTRAP_SERVERS: ${RTVI_OPENAI_KAFKA_BOOTSTRAP_SERVERS:-127.0.0.1:9092}
       RTCV_ELASTICSEARCH_URL: ${ELASTICSEARCH_URL:-http://127.0.0.1:9200}
       RTCV_RAW_TOPIC: ${RTCV_RAW_TOPIC:-ds-perception}

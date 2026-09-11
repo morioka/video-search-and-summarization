@@ -18,7 +18,10 @@ import numpy as np
 
 ROOT = Path(os.getenv("RTCV_VIDEO_ROOT", "/data/videos"))
 INTERVAL = float(os.getenv("RTCV_EVENT_INTERVAL_SEC", "5"))
-DETECTOR = os.getenv("RTCV_DETECTOR", "hog").lower()
+DETECTOR = os.getenv("RTCV_DETECTOR", "auto").lower()
+ONNX_MODEL = os.getenv("RTCV_ONNX_MODEL", "")
+ONNX_INPUT_SIZE = int(os.getenv("RTCV_ONNX_INPUT_SIZE", "640"))
+LABELS = [label.strip() for label in os.getenv("RTCV_LABELS", "person, bicycle, car, motorcycle, airplane, bus, train, truck, boat").split(",")]
 DEMO_FALLBACK = os.getenv("RTCV_DEMO_FALLBACK", "true").lower() == "true"
 KAFKA_SERVERS = os.getenv("RTCV_KAFKA_BOOTSTRAP_SERVERS", "")
 RAW_TOPIC = os.getenv("RTCV_RAW_TOPIC", "ds-perception")
@@ -60,6 +63,7 @@ producer: Any = None
 rules: list[Rule] = []
 hog = cv2.HOGDescriptor()
 hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
+onnx_net: cv2.dnn_Net | None = None
 
 
 def _load_rules() -> list[Rule]:
@@ -134,10 +138,44 @@ def _frame(path: Path, offset: float) -> np.ndarray | None:
 
 
 def _objects(stream: dict[str, Any], offset: float) -> tuple[list[dict[str, Any]], str]:
-    if DETECTOR != "hog" or stream["camera_url"].startswith("rtsp://"):
+    if stream["camera_url"].startswith("rtsp://"):
         return ([{"id": "object-0", "type": os.getenv("RTCV_DEMO_OBJECT", "person"), "confidence": 1.0, "bbox": [0, 0, 1, 1]}], "demo")
     image = _frame(Path(stream["path"]), offset)
-    if image is not None:
+    if image is not None and DETECTOR in {"onnx", "auto"} and ONNX_MODEL:
+        try:
+            global onnx_net
+            if onnx_net is None:
+                onnx_net = cv2.dnn.readNetFromONNX(ONNX_MODEL)
+            blob = cv2.dnn.blobFromImage(image, 1 / 255.0, (ONNX_INPUT_SIZE, ONNX_INPUT_SIZE), swapRB=True, crop=False)
+            onnx_net.setInput(blob)
+            output = onnx_net.forward()
+            rows = output.reshape(output.shape[-2], output.shape[-1]) if output.ndim >= 2 else output.reshape(1, -1)
+            if rows.shape[0] < rows.shape[1] and rows.shape[0] <= 256:
+                rows = rows.T
+            height, width = image.shape[:2]
+            detected = []
+            for index, row in enumerate(rows):
+                if len(row) < 6:
+                    continue
+                scores = row[4:]
+                class_index = int(np.argmax(scores))
+                confidence = float(scores[class_index])
+                if confidence < 0.25:
+                    continue
+                cx, cy, box_width, box_height = [float(value) for value in row[:4]]
+                # YOLO ONNX exports use either normalized or input-pixel boxes.
+                scale_x = width if max(cx, cy, box_width, box_height) <= 2 else width / ONNX_INPUT_SIZE
+                scale_y = height if max(cx, cy, box_width, box_height) <= 2 else height / ONNX_INPUT_SIZE
+                x1, y1 = (cx - box_width / 2) * scale_x, (cy - box_height / 2) * scale_y
+                x2, y2 = (cx + box_width / 2) * scale_x, (cy + box_height / 2) * scale_y
+                detected.append({"id": f"object-{index}", "type": LABELS[class_index] if class_index < len(LABELS) else f"class-{class_index}", "confidence": confidence, "bbox": [max(0, x1 / width), max(0, y1 / height), min(1, x2 / width), min(1, y2 / height)]})
+            if detected:
+                return detected, "onnx"
+        except (cv2.error, OSError, ValueError):
+            pass
+        if DETECTOR == "onnx" and not DEMO_FALLBACK:
+            return [], "onnx"
+    if image is not None and DETECTOR in {"hog", "auto"}:
         boxes, weights = hog.detectMultiScale(image, winStride=(8, 8), padding=(8, 8), scale=1.05)
         height, width = image.shape[:2]
         detected = []
