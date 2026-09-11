@@ -896,14 +896,29 @@ class AnomalyEnhancer(AsyncDispatchMixin, AsyncExternalIOMixin, AsyncVLMModeMixi
                         )
             else:
                 # Kafka sources provide protobuf tuples; Redis Stream sources
-                # provide JSON strings. Only run protobuf decoding for the
-                # Kafka-shaped tuple path.
-                messages_input = messages if isinstance(messages, dict) else {'batch': messages}
-                decoded_messages = protobuf_anomalies_to_json_string_list(
-                    messages_input,
-                    message_type
-                )
                 parsed_messages = []
+                # Local/license-free producers may publish JSON on the same
+                # Kafka topics. Decode those records directly and retain the
+                # original Protobuf path for NVIDIA-compatible producers.
+                messages_input = messages if isinstance(messages, dict) else {'batch': messages}
+                protobuf_input = {}
+                for topic, records in messages_input.items():
+                    for record in records:
+                        payload = record[1] if isinstance(record, (tuple, list)) and len(record) > 1 else record
+                        if isinstance(payload, (bytes, bytearray)):
+                            try:
+                                parsed_messages.append(json.loads(payload.decode("utf-8")))
+                                continue
+                            except (UnicodeDecodeError, json.JSONDecodeError):
+                                pass
+                        protobuf_input.setdefault(topic, []).append(record)
+
+                if protobuf_input:
+                    decoded_messages = protobuf_anomalies_to_json_string_list(
+                        protobuf_input, message_type
+                    )
+                else:
+                    decoded_messages = []
                 for message in decoded_messages:
                     if isinstance(message, str):
                         try:

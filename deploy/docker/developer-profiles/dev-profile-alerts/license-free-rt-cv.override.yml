@@ -1,5 +1,14 @@
 # Replace the NVIDIA perception workload for the Alerts profile.
 services:
+  alert-bridge:
+    build:
+      context: ../../services/alert
+      dockerfile: Dockerfile.local
+    image: ${ALERT_BRIDGE_IMAGE:-vss-alert-bridge:local}
+    environment:
+      VLM_WARMUP_ENABLED: ${VLM_WARMUP_ENABLED:-false}
+      ALERT_AGENT_VST_PASS_THROUGH_MODE: ${ALERT_AGENT_VST_PASS_THROUGH_MODE:-true}
+
   vss-video-analytics-api-alerts:
     build:
       context: ../../services/analytics/video-analytics-api-local
