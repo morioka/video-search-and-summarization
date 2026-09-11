@@ -222,6 +222,9 @@ def _event(stream: dict[str, Any], offset: float) -> dict[str, Any]:
         "category": "object_detection",
         "objects": objects,
         "source": detector,
+        # Keep the media location available to Alert Bridge's local/VST
+        # pass-through path without changing the top-level event schema.
+        "info": {"video_path": stream["path"]},
     }
 
 

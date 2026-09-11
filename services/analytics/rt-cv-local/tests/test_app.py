@@ -20,3 +20,15 @@ def test_stream_add_rejects_missing_file(tmp_path):
     with TestClient(module.app) as client:
         response = client.post("/api/v1/stream/add", json={"value": {"camera_id": "x", "camera_url": str(tmp_path / "missing.mp4")}})
         assert response.status_code == 404
+
+
+def test_event_keeps_media_path_for_alert_bridge():
+    event = module._event(
+        {
+            "camera_id": "cam-1",
+            "camera_url": "file:///data/videos/sample.mp4",
+            "path": "/data/videos/sample.mp4",
+        },
+        1.0,
+    )
+    assert event["info"]["video_path"] == "/data/videos/sample.mp4"

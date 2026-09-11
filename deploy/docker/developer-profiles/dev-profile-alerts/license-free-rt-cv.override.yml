@@ -5,6 +5,8 @@ services:
       context: ../../services/alert
       dockerfile: Dockerfile.local
     image: ${ALERT_BRIDGE_IMAGE:-vss-alert-bridge:local}
+    volumes:
+      - ${VSS_DATA_DIR:-./data-dir}/videos/dev-profile-alerts:/data/videos:ro
     environment:
       VLM_WARMUP_ENABLED: ${VLM_WARMUP_ENABLED:-false}
       ALERT_AGENT_VST_PASS_THROUGH_MODE: ${ALERT_AGENT_VST_PASS_THROUGH_MODE:-true}

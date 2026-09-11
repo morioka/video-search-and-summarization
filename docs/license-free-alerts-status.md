@@ -45,6 +45,10 @@ API単体を手動起動する必要はない。
 6. ~~VST Storage Adaptorを用意し、保存動画検索のtimeline API（現状404）を実装または接続する。~~ ローカルStorage互換APIで実装済み。`/vst/api/v1/storage/timelines` は登録済み動画に対して `200` を返す。
 7. ~~`vss-agent`を含む検索・要約経路の外部公開ポートとCompose起動順を固定し、再起動後の疎通を自動検証する。~~ 完了
 
+8. RT-CVの正規化JSONイベントに`info.video_path`を付与し、ローカルAlert Bridgeの
+   パススルー検証が保存動画を参照できるようにした。Alertsプロファイルでは
+   `${VSS_DATA_DIR}/videos/dev-profile-alerts`を`/data/videos`へ読み取り専用でマウントする。
+
 現状では、raw captionレスポンスに`documentType=raw_events`と`isRawEvent=true`
 を追加し、正式Alertとの区別をAPI契約に反映済み。Composeの未設定変数警告は
 起動対象外サービスのinclude定義に由来するため、動作を変えない範囲での整理を
