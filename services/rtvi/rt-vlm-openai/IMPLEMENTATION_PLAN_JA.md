@@ -498,3 +498,11 @@ release/3.0.1の依存定義には`langchain-nvidia-ai-endpoints`と`nvidia-rag`
 - Alert Bridgeの古いコンテナを再利用すると動画ボリュームが反映されないため、起動スクリプトでAlert Bridge/Redisを再作成するようにした。
 - 実動画で、RTSP配信→RT-VLM→AlertSink→Alert Bridge→VLMエンリッチャー→`mdx-vlm-incidents`→Alerts APIの一連の経路を確認した。Alerts APIで`VLM Detected Event`が1件取得できた。
 - `verify-license-free-lvs.sh` は全項目成功。RTSPデモのアラート件数確認にはVLM処理時間を考慮して`GRACE_SECONDS`を設定する。
+
+### VIA実行エンジンに関するTODO
+
+- CUDA runtimeや`nvidia/cuda`など広く配布される汎用GPUイメージは、当面の許容範囲とする。
+- 除去対象の中心は、VIA固有の実行ランタイムを含む`via-engine-base`である。
+- 現在の`vss-lvs-local`は保存動画登録・キャプション・検索連携に必要なVIA互換APIを限定実装しているが、VIA内部のパイプライン実行エンジンを再現したものではない。
+- 将来、完全なNVIDIA実行環境なしを目指す場合は、必要なVIA外部APIを棚卸しし、汎用Python/CUDA環境上の互換サービスへ段階的に移行する。
+- 未使用のVIA高度機能まで再実装せず、保存動画検索・要約・Alertなど主要ユースケースに必要な範囲を優先する。
