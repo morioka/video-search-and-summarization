@@ -68,6 +68,9 @@ wait_for_http "http://127.0.0.1:${BACKEND_PORT:-38111}/v1/ready" "local LVS"
 echo "Starting MediaMTX, local RT-CV, NVStreamer, Storage and Agent..."
 (
   cd "$DEPLOY_DIR"
+  # A manually started compatibility container can occupy the fixed name and
+  # prevent Compose from recreating it. Replace only this managed service.
+  docker rm -f vss-rt-cv-local >/dev/null 2>&1 || true
   docker compose \
     --env-file "$ENV_FILE" \
     -f compose.yml \
@@ -77,12 +80,18 @@ echo "Starting MediaMTX, local RT-CV, NVStreamer, Storage and Agent..."
   wait_for_http "http://127.0.0.1:31000/health" "local NVStreamer"
   wait_for_http "http://127.0.0.1:31001/health" "local VST storage"
   # The base profile declares the NVIDIA RT-VLM as an optional dependency.
-  # Do not let Compose pull that image after the local RT-VLM is ready.
+  # Do not let Compose pull that image after the local RT-VLM is ready. Agent
+  # image builds are opt-in because dependency resolution can take several
+  # minutes and is unnecessary when the local source has not changed.
+  agent_build_args=()
+  if [[ "${VSS_AGENT_BUILD:-false}" =~ ^(1|true|yes)$ ]]; then
+    agent_build_args+=(--build)
+  fi
   docker compose \
     --env-file "$ENV_FILE" \
     -f compose.yml \
     -f "$PROFILE_DIR/license-free.override.yml" \
-    up -d --no-deps --build vss-agent
+    up -d --no-deps "${agent_build_args[@]}" vss-agent
   docker compose \
     --env-file "$ENV_FILE" \
     -f compose.yml \
