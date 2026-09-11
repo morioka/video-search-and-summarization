@@ -271,6 +271,7 @@ export const useAlerts = ({ apiUrl, vstApiUrl, vlmVerified = true, vlmVerdict = 
   const [lastBatchSize, setLastBatchSize] = useState(0);
   const [sensorMap, setSensorMap] = useState<Map<string, string>>(new Map());
   const [sensorList, setSensorList] = useState<string[]>([]);
+  const hasLoadedAlertsRef = useRef(false);
 
   const loadMoreInFlightRef = useRef(false);
   const alertsRef = useRef(alerts);
@@ -346,7 +347,11 @@ export const useAlerts = ({ apiUrl, vstApiUrl, vlmVerified = true, vlmVerdict = 
     const fetchedForVlmVerified = vlmVerified;
 
     try {
-      setLoading(true);
+      // Initial load needs a blocking indicator. During auto-refresh keep the
+      // current table rendered so polling does not cause a visible flash.
+      if (!hasLoadedAlertsRef.current) {
+        setLoading(true);
+      }
       setError(null);
 
       const now = new Date();
@@ -369,11 +374,19 @@ export const useAlerts = ({ apiUrl, vstApiUrl, vlmVerified = true, vlmVerdict = 
       const transformedAlerts = transformIncidentsPayload(data);
       setLastBatchSize(transformedAlerts.length);
       setAlerts(transformedAlerts);
+      hasLoadedAlertsRef.current = true;
 
       return true;
     } catch (err) {
       if (signal?.aborted) return false;
       if (fetchedForVlmVerified !== currentVlmVerifiedRef.current) return false;
+      // Auto-refresh is best-effort. Keep already rendered incidents visible
+      // when a single poll is interrupted, instead of flashing a full-page
+      // error between successful refreshes.
+      if (alertsRef.current.length > 0) {
+        console.warn('Transient alerts refresh failed; retaining current data', err);
+        return false;
+      }
       setError(err instanceof Error ? err.message : 'Failed to fetch alerts');
       return false;
     } finally {

@@ -133,6 +133,8 @@ services:
       args:
         UI_RUNTIME_BASE: ${LICENSE_FREE_UI_RUNTIME_BASE:-node:22-bookworm-slim}
     image: ${VSS_UI_IMAGE:-vss-ui-generic:dev}
+    environment:
+      HOSTNAME: 0.0.0.0
 
   # License-free replacement for the NVIDIA NVStreamer image.  It exposes the
   # dashboard on 31000 and publishes uploaded files to the shared MediaMTX
