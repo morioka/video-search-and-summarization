@@ -25,3 +25,7 @@ docker run --rm --network host \
   -v "$PWD/model.onnx:/models/model.onnx:ro" \
   vss-rt-cv-local:dev
 ```
+
+For the developer profile, run
+`deploy/docker/scripts/download-rtdetr-model.sh`. It stores the verified model
+under `data-dir/models/rt-cv-local/`; Compose mounts that directory read-only.

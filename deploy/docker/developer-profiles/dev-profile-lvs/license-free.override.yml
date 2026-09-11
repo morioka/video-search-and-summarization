@@ -25,6 +25,7 @@ services:
       RTCV_RULES_FILE: /etc/rt-cv-local/rules.json
     volumes:
       - ./data-dir/videos/dev-profile-lvs:/data/videos:ro
+      - ${RTCV_MODEL_DIR:-./data-dir/models/rt-cv-local}:/models:ro
       - ./rt-cv-local/rules.json:/etc/rt-cv-local/rules.json:ro
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9000/ready', timeout=3)"]
