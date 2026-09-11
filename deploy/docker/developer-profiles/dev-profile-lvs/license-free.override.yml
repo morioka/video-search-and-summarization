@@ -42,7 +42,7 @@ services:
     environment:
       VIA_LOCAL_ASSET_DIR: /data/via-assets
       VIA_VLM_ENDPOINT: ${LICENSE_FREE_VLM_ENDPOINT:-http://127.0.0.1:8018/v1}
-      VIA_VLM_OPENAI_MODEL_DEPLOYMENT_NAME: ${VLM_MODEL_TYPE:-gpt-4o}
+      VIA_VLM_OPENAI_MODEL_DEPLOYMENT_NAME: ${VLM_NAME:-gpt-4o}
       VIA_VLM_API_KEY: ${OPENAI_API_KEY:-dummy}
       BACKEND_PORT: ${BACKEND_PORT:-38111}
     volumes:

@@ -308,6 +308,7 @@ def create_app(
         messages = payload.get("messages") or []
         media_url: str | None = None
         prompt_parts: list[str] = []
+        image_data: list[str] = []
         for message in messages:
             content = message.get("content", "") if isinstance(message, dict) else ""
             items = content if isinstance(content, list) else [{"type": "text", "text": content}]
@@ -319,13 +320,40 @@ def create_app(
                 if item.get("type") == "video_url":
                     value = item.get("video_url", {})
                     media_url = value.get("url") if isinstance(value, dict) else str(value)
-        if not media_url:
+                if item.get("type") == "image_url":
+                    value = item.get("image_url", {})
+                    image_url = value.get("url") if isinstance(value, dict) else str(value)
+                    if image_url.startswith("data:image/") and "," in image_url:
+                        image_data.append(image_url.split(",", 1)[1])
+        if not media_url and not image_data:
             raise HTTPException(status_code=422, detail="exactly one video_url is required")
 
         request_id = uuid4()
-        suffix = os.path.splitext(media_url.split("?", 1)[0])[1] or ".mp4"
+        suffix = (os.path.splitext(media_url.split("?", 1)[0])[1] or ".mp4") if media_url else ".mp4"
         temp_path: str | None = None
         try:
+            if image_data:
+                request = GenerateCaptionsRequest(
+                    id=uuid4(),
+                    prompt="\n".join(prompt_parts) or "Describe the observed video.",
+                    model=str(payload.get("model") or runtime_settings.model),
+                    max_tokens=payload.get("max_tokens"),
+                )
+                result, _latency = await app.state.backend.caption(
+                    request, image_data, start=0, end=0,
+                )
+                return {
+                    "id": f"chatcmpl-{request.id}",
+                    "object": "chat.completion",
+                    "created": int(time.time()),
+                    "model": request.model,
+                    "choices": [{
+                        "index": 0,
+                        "message": {"role": "assistant", "content": result.content},
+                        "finish_reason": "stop",
+                    }],
+                }
+
             with tempfile.NamedTemporaryFile(prefix="rtvi-chat-", suffix=suffix, delete=False) as handle:
                 temp_path = handle.name
 
