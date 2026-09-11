@@ -43,6 +43,10 @@ services:
     volumes:
       - ./config.yaml:/app/config.yaml:ro
       - /home/morioka/temp/Video-to-SOP-Generator/Videos/konro_inspection.mp4:/media/konro_inspection.mp4:ro
+      # Make RT-CV local events resolvable in pass-through mode. The default
+      # follows the repository's sample data layout; deployments can override
+      # it with VSS_DATA_DIR.
+      - ${VSS_DATA_DIR:-../../deploy/docker/data-dir}/videos/dev-profile-lvs:/data/videos:ro
     depends_on:
       - alert-bridge-redis
       - alert-bridge-kafka

@@ -14,6 +14,7 @@ request() {
 request "RT-VLM" "${RTVLM_URL:-http://127.0.0.1:8018}/v1/health/ready"
 request "Local VIA/LVS" "${LVS_URL:-http://127.0.0.1:38111}/v1/ready"
 request "Local VIA models" "${LVS_URL:-http://127.0.0.1:38111}/v1/models"
+request "Local RT-CV" "${RTCV_URL:-http://127.0.0.1:9000}/health"
 request "Local NVStreamer" "${NVSTREAMER_URL:-http://127.0.0.1:31000}/health"
 request "NVStreamer stream catalog" "${NVSTREAMER_URL:-http://127.0.0.1:31000}/api/v1/streams"
 request "Local VST storage" "${VST_STORAGE_URL:-http://127.0.0.1:31001}/health"

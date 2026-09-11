@@ -65,14 +65,15 @@ echo "Starting local VIA-compatible LVS..."
 )
 wait_for_http "http://127.0.0.1:${BACKEND_PORT:-38111}/v1/ready" "local LVS"
 
-echo "Starting MediaMTX, local NVStreamer, Storage and Agent..."
+echo "Starting MediaMTX, local RT-CV, NVStreamer, Storage and Agent..."
 (
   cd "$DEPLOY_DIR"
   docker compose \
     --env-file "$ENV_FILE" \
     -f compose.yml \
     -f "$PROFILE_DIR/license-free.override.yml" \
-    up -d mediamtx nvstreamer-lvs vss-vst-storage-local
+    up -d --build rt-cv-local mediamtx nvstreamer-lvs vss-vst-storage-local
+  wait_for_http "http://127.0.0.1:9000/health" "local RT-CV"
   wait_for_http "http://127.0.0.1:31000/health" "local NVStreamer"
   wait_for_http "http://127.0.0.1:31001/health" "local VST storage"
   # The base profile declares the NVIDIA RT-VLM as an optional dependency.
