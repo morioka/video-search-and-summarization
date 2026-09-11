@@ -16,6 +16,7 @@
 - `vss-rt-vlm-openai:local`: OpenAI互換APIを使うローカル実装
 - `vss-vst-storage-local:dev`: VST Storage互換のローカル実装
 - `vss-video-analytics-api-local:dev`: Alerts API互換のローカル実装
+- `vss-rt-cv-local:dev`: Search/Alerts向けRT-CV互換のローカル実装
 - `vss-alert-bridge:local`: Alert Bridgeのローカルビルド
 - 公開イメージのKafka、Elasticsearch、Redis
 
@@ -90,3 +91,15 @@ VIA/CUDA実行エンジンを使わない保存動画向け実装を
 RT-VLMの後に開始する。`/v1/ready`、`/v1/models`、ファイル管理、保存動画要約、caption
 検索ベースのchat APIを提供する。livestream APIは初版では501を返す。単体契約テストと
 Dockerコンテナでのhealth/models応答を確認済みである。
+
+## 2026-09-11 RT-CVローカル互換経路
+
+`services/analytics/rt-cv-local`を追加した。既存RT-CVの
+`/api/v1/stream/add`、`/api/v1/stream/remove`、`/api/v1/stream/list`契約を受け、
+保存動画または疑似ストリームを登録できる。初期版の検出器は品質検証用の決定的な
+デモイベント生成器で、DeepStream/CUDA/NVIDIA共有ライブラリを使用しない。
+
+イベントは正規化JSONとしてKafkaへ送信し、設定JSONの簡易ルールに一致した場合は
+`mdx-alerts`/`mdx-incidents`へも送信する。Elasticsearchへの直接保存にも対応する。
+`dev-profile-lvs/license-free.override.yml`から`vss-rt-cv-local:dev`として起動確認済み。
+実推論モデル、実RTSPデコード、OSDは後続課題である。

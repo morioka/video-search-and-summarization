@@ -5,6 +5,32 @@
 # images (Kafka, Elasticsearch, Redis, PostgreSQL) remain unchanged.
 
 services:
+  # Shared CPU-only RT-CV compatibility service for Search/Alerts contract tests.
+  rt-cv-local:
+    build:
+      context: ../../services/analytics/rt-cv-local
+    image: ${RTCV_LOCAL_IMAGE:-vss-rt-cv-local:dev}
+    container_name: vss-rt-cv-local
+    network_mode: host
+    environment:
+      RTCV_VIDEO_ROOT: /data/videos
+      RTCV_KAFKA_BOOTSTRAP_SERVERS: ${RTVI_OPENAI_KAFKA_BOOTSTRAP_SERVERS:-127.0.0.1:9092}
+      RTCV_ELASTICSEARCH_URL: ${ELASTICSEARCH_URL:-http://127.0.0.1:9200}
+      RTCV_RAW_TOPIC: ${RTCV_RAW_TOPIC:-ds-perception}
+      RTCV_ALERT_TOPIC: ${RTCV_ALERT_TOPIC:-mdx-alerts}
+      RTCV_INCIDENT_TOPIC: ${RTCV_INCIDENT_TOPIC:-mdx-incidents}
+      RTCV_RULES_FILE: /etc/rt-cv-local/rules.json
+    volumes:
+      - ./data-dir/videos/dev-profile-lvs:/data/videos:ro
+      - ./rt-cv-local/rules.json:/etc/rt-cv-local/rules.json:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9000/ready', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
   # The profile's original `rtvi-vlm` service remains defined in the base
   # compose files. It is intentionally commented out here because it points
   # to the NVIDIA image; start the validated OpenAI-compatible service from

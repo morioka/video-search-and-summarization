@@ -1,0 +1,11 @@
+{
+  "rules": [
+    {
+      "name": "demo-person-detected",
+      "enabled": true,
+      "object_type": "person",
+      "severity": "high",
+      "min_confidence": 0.0
+    }
+  ]
+}
