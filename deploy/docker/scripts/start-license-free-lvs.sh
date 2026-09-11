@@ -54,6 +54,17 @@ else
 fi
 wait_for_http "http://127.0.0.1:8018/v1/health/ready" "RT-VLM"
 
+echo "Starting local VIA-compatible LVS..."
+(
+  cd "$DEPLOY_DIR"
+  docker compose \
+    --env-file "$ENV_FILE" \
+    -f compose.yml \
+    -f "$PROFILE_DIR/license-free.override.yml" \
+    up -d --no-deps --build lvs-server
+)
+wait_for_http "http://127.0.0.1:${BACKEND_PORT:-38111}/v1/ready" "local LVS"
+
 echo "Starting MediaMTX, local NVStreamer, Storage and Agent..."
 (
   cd "$DEPLOY_DIR"

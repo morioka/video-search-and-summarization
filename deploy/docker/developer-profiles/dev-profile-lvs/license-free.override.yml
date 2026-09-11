@@ -33,7 +33,26 @@ services:
     restart: unless-stopped
 
   lvs-server:
-    image: ${VSS_LVS_IMAGE:-vss-lvs-local:3.2.4}
+    build:
+      context: ../..
+      dockerfile: services/video-summarization-local/Dockerfile
+    image: ${VSS_LVS_IMAGE:-vss-lvs-local:dev}
+    container_name: vss-lvs-local
+    network_mode: host
+    environment:
+      VIA_LOCAL_ASSET_DIR: /data/via-assets
+      VIA_VLM_ENDPOINT: ${LICENSE_FREE_VLM_ENDPOINT:-http://127.0.0.1:8018/v1}
+      VIA_VLM_OPENAI_MODEL_DEPLOYMENT_NAME: ${VLM_MODEL_TYPE:-gpt-4o}
+      VIA_VLM_API_KEY: ${OPENAI_API_KEY:-dummy}
+      BACKEND_PORT: ${BACKEND_PORT:-38111}
+    volumes:
+      - ./data-dir/videos/dev-profile-lvs:/data/via-assets
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:38111/v1/ready', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   vss-agent:
     build:

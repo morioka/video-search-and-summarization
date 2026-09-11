@@ -79,3 +79,14 @@ LVS（`services/video-summarization`）は単純なbase image置換の対象外�
 再現可能」ではない。`INSTALL_CTX_RAG=false`の最小ビルドは成功するものの、FastAPI等
 が入らずAPIは起動しないため、実用起動にはCA-RAG有効ビルドまたは同等依存の明示追加が
 必要である。
+
+## 2026-09-11 VIAローカル互換経路
+
+VIA/CUDA実行エンジンを使わない保存動画向け実装を
+`services/video-summarization-local`に追加した。FFmpegで10秒チャンクから代表フレームを
+抽出し、OpenAI互換VLMへ送信する。captionはローカルJSONLへ保存する。
+
+`license-free.override.yml`では`vss-lvs-local:dev`として起動し、起動スクリプトが
+RT-VLMの後に開始する。`/v1/ready`、`/v1/models`、ファイル管理、保存動画要約、caption
+検索ベースのchat APIを提供する。livestream APIは初版では501を返す。単体契約テストと
+Dockerコンテナでのhealth/models応答を確認済みである。
