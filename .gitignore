@@ -24,4 +24,5 @@ deploy/docker/rag-secret.override.yml
 # Local Elasticsearch and generated capacity reports.
 deploy/docker/data-dir/
 deploy/docker/developer-profiles/*/data-dir/
+deploy/docker/models/
 reports/

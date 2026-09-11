@@ -15,8 +15,8 @@ services:
     environment:
       RTCV_VIDEO_ROOT: /data/videos
       RTCV_DETECTOR: ${RTCV_DETECTOR:-auto}
-      RTCV_ONNX_MODEL: ${RTCV_ONNX_MODEL:-}
-      RTCV_LABELS: ${RTCV_LABELS:-person, bicycle, car, motorcycle, airplane, bus, train, truck, boat}
+      RTCV_ONNX_MODEL: ${RTCV_ONNX_MODEL:-/models/model.onnx}
+      RTCV_LABELS: ${RTCV_LABELS:-}
       RTCV_KAFKA_BOOTSTRAP_SERVERS: ${RTVI_OPENAI_KAFKA_BOOTSTRAP_SERVERS:-127.0.0.1:9092}
       RTCV_ELASTICSEARCH_URL: ${ELASTICSEARCH_URL:-http://127.0.0.1:9200}
       RTCV_RAW_TOPIC: ${RTCV_RAW_TOPIC:-ds-perception}
@@ -25,7 +25,7 @@ services:
       RTCV_RULES_FILE: /etc/rt-cv-local/rules.json
     volumes:
       - ./data-dir/videos/dev-profile-lvs:/data/videos:ro
-      - ${RTCV_MODEL_DIR:-./data-dir/models/rt-cv-local}:/models:ro
+      - ${RTCV_MODEL_DIR:-./models/rt-cv-local}:/models:ro
       - ./rt-cv-local/rules.json:/etc/rt-cv-local/rules.json:ro
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9000/ready', timeout=3)"]

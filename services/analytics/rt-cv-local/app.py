@@ -22,7 +22,7 @@ DETECTOR = os.getenv("RTCV_DETECTOR", "auto").lower()
 ONNX_MODEL = os.getenv("RTCV_ONNX_MODEL", "")
 ONNX_INPUT_SIZE = int(os.getenv("RTCV_ONNX_INPUT_SIZE", "640"))
 COCO_LABELS = "person,bicycle,car,motorcycle,airplane,bus,train,truck,boat,traffic light,fire hydrant,stop sign,parking meter,bench,bird,cat,dog,horse,sheep,cow,elephant,bear,zebra,giraffe,backpack,umbrella,handbag,tie,suitcase,frisbee,skis,snowboard,sports ball,kite,baseball bat,baseball glove,skateboard,surfboard,tennis racket,bottle,wine glass,cup,fork,knife,spoon,bowl,banana,apple,sandwich,orange,broccoli,carrot,hot dog,pizza,donut,cake,chair,couch,potted plant,bed,dining table,toilet,tv,laptop,mouse,remote,keyboard,cell phone,microwave,oven,toaster,sink,refrigerator,book,clock,vase,scissors,teddy bear,hair drier,toothbrush"
-LABELS = [label.strip() for label in os.getenv("RTCV_LABELS", COCO_LABELS).split(",")]
+LABELS = [label.strip() for label in (os.getenv("RTCV_LABELS") or COCO_LABELS).split(",")]
 DEMO_FALLBACK = os.getenv("RTCV_DEMO_FALLBACK", "true").lower() == "true"
 KAFKA_SERVERS = os.getenv("RTCV_KAFKA_BOOTSTRAP_SERVERS", "")
 RAW_TOPIC = os.getenv("RTCV_RAW_TOPIC", "ds-perception")

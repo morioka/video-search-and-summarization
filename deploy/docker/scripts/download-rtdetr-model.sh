@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-MODEL_DIR="${RTCV_MODEL_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../developer-profiles/dev-profile-lvs/data-dir/models/rt-cv-local" && pwd)}"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+MODEL_DIR="${RTCV_MODEL_DIR:-$ROOT_DIR/deploy/docker/models/rt-cv-local}"
 MODEL_PATH="$MODEL_DIR/model.onnx"
 MODEL_URL="https://huggingface.co/AnnotateIt/rtdetr-r18vd-coco-onnx/resolve/main/model.onnx"
 EXPECTED_SHA256="11843b02455cc24009aed24d4c40db721b1093be5ccd6bbe7b9c441abb1d0558"

@@ -28,4 +28,4 @@ docker run --rm --network host \
 
 For the developer profile, run
 `deploy/docker/scripts/download-rtdetr-model.sh`. It stores the verified model
-under `data-dir/models/rt-cv-local/`; Compose mounts that directory read-only.
+under `deploy/docker/models/rt-cv-local/`; Compose mounts that directory read-only.
