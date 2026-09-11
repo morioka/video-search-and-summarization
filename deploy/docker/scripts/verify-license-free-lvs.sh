@@ -47,4 +47,14 @@ if printf '%s\n' "$vlm_images" | grep -Eiq 'nvcr.io|nvidia.*vlm|vss-rt-vlm:3'; t
 fi
 echo "OK: license-free VLM image policy"
 
+# Guard the compatibility services as well. A profile merge or stale Compose
+# override must not silently replace the local LVS/Agent images with NGC ones.
+compat_images="$(docker ps --format '{{.Names}}\t{{.Image}}' | grep -E '^(vss-lvs-local|vss-agent|vss-agent-ui|mdx-vss-video-analytics-api-1)\b' || true)"
+if printf '%s\n' "$compat_images" | grep -Eiq 'nvcr.io|nvidia/(distroless|base)|via-engine'; then
+  echo "FAIL: proprietary NVIDIA compatibility image is running:" >&2
+  printf '%s\n' "$compat_images" >&2
+  exit 1
+fi
+echo "OK: license-free LVS/Agent image policy"
+
 echo "License-free LVS smoke test passed."
