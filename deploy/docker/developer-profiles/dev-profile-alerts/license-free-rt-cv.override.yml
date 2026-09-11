@@ -7,8 +7,9 @@ services:
     container_name: vss-rtvi-cv
     entrypoint: ["uvicorn"]
     command: ["app:app", "--host", "0.0.0.0", "--port", "9000"]
-    runtime: null
-    deploy: {}
+    # Explicitly replace the DeepStream runtime inherited by the profile.
+    runtime: runc
+    deploy: !reset {}
     volumes:
       - ${VSS_DATA_DIR:-./data-dir}/videos/dev-profile-alerts:/data/videos:ro
       - ${RTCV_MODEL_DIR:-./models/rt-cv-local}:/models:ro
