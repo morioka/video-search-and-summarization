@@ -15,6 +15,7 @@ from openai import AsyncOpenAI
 from pydantic import BaseModel, ConfigDict, Field
 
 from rt_vlm_openai.assets import Asset, AssetStore
+from rt_vlm_openai.kafka_publisher import VisionLLMKafkaPublisher
 from rt_vlm_openai.models import FileInfo, GenerateCaptionsRequest
 from rt_vlm_openai.openai_backend import OpenAIBackend
 from rt_vlm_openai.video import VideoProcessor, chunk_ranges
@@ -55,6 +56,15 @@ backend = OpenAIBackend(
     timeout=int(os.getenv("VIA_VLM_TIMEOUT", "180")),
     max_tokens=int(os.getenv("VIA_VLM_MAX_TOKENS", "4096")),
 )
+try:
+    publisher = VisionLLMKafkaPublisher(
+        os.getenv("VIA_KAFKA_BOOTSTRAP_SERVERS", ""),
+        os.getenv("VIA_KAFKA_TOPIC", "mdx-vlm-captions"),
+    )
+except Exception:
+    # Kafka is a downstream integration; stored-video analysis must remain usable
+    # when the broker is unavailable during local development.
+    publisher = VisionLLMKafkaPublisher("", os.getenv("VIA_KAFKA_TOPIC", "mdx-vlm-captions"))
 
 
 @app.on_event("startup")
@@ -101,6 +111,12 @@ async def _caption_asset(asset: Asset, request: SummarizeRequest) -> list[dict[s
             "content": answer.content,
         }
         result.append(item)
+        publisher.publish(
+            stream_id=str(asset.info.id),
+            chunk={**item, "frame_count": len(frames.images)},
+            model=request.model or MODEL,
+            request_id=str(asset.info.id),
+        )
         with CAPTION_FILE.open("a", encoding="utf-8") as output:
             output.write(json.dumps(item, ensure_ascii=True) + "\n")
     return result
@@ -204,7 +220,9 @@ async def chat(request: ChatRequest) -> dict[str, Any]:
     context = "\n".join(f"[{r['start_time']}-{r['end_time']}] {r['content']}" for r in rows)
     question = next((str(m.get("content", "")) for m in reversed(request.messages) if m.get("role") == "user"), "")
     answer = context or "No captions are available for this video."
-    if context and BASE_URL and API_KEY != "dummy":
+    # The configured VIA endpoint is normally the vision bridge (which requires
+    # media input), so text-only chat stays local unless explicitly enabled.
+    if context and os.getenv("VIA_CHAT_LLM_ENABLED", "false").lower() == "true" and BASE_URL and API_KEY != "dummy":
         client = AsyncOpenAI(api_key=API_KEY, base_url=BASE_URL)
         response = await client.chat.completions.create(
             model=request.model or MODEL,

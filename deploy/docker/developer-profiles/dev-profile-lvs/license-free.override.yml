@@ -44,6 +44,8 @@ services:
       VIA_VLM_ENDPOINT: ${LICENSE_FREE_VLM_ENDPOINT:-http://127.0.0.1:8018/v1}
       VIA_VLM_OPENAI_MODEL_DEPLOYMENT_NAME: ${VLM_NAME:-gpt-4o}
       VIA_VLM_API_KEY: ${OPENAI_API_KEY:-dummy}
+      VIA_KAFKA_BOOTSTRAP_SERVERS: ${RTVI_OPENAI_KAFKA_BOOTSTRAP_SERVERS:-127.0.0.1:9092}
+      VIA_KAFKA_TOPIC: ${RTVI_OPENAI_KAFKA_TOPIC:-mdx-vlm-captions}
       BACKEND_PORT: ${BACKEND_PORT:-38111}
     volumes:
       - ./data-dir/videos/dev-profile-lvs:/data/via-assets
