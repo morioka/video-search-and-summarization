@@ -155,3 +155,6 @@ docker compose --env-file developer-profiles/dev-profile-lvs/generated.env \
 - 2026-09-12追記6: 上記の起動順序を`deploy/docker/scripts/start-license-free-behavior-analytics.sh`へ実装した。Kafka health、topic初期化コンテナの終了コードを確認してからCPU版BAとJSONアダプターをCompose起動する。
 - 2026-09-12追記7: 起動スクリプトを実行し、既存Kafkaのhealth確認後に`vss-behavior-analytics-local`と`vss-behavior-analytics-json-bridge`が起動し、BA consumerのpartition割り当てを確認した。イメージのビルドは起動時に行わず、事前ビルド済み`vss-behavior-analytics-local:dev`を使用する。
 - 2026-09-12追記8: 起動スクリプトで立ち上げた常駐BA経路へ、再起動後のRT-CV localから`konro_inspection.mp4`を登録した。`ds-perception`→`mdx-raw`のoffset進行と、BAログのsensor `konro-live-ba-3`に対するbehavior生成（複数batch）を確認。warehouse 2D設定ではincidentは0件だが、動画入力から分析出力までの主要経路は成立した。
+- 2026-09-12追記9: warehouse 2Dの`Analytics2DApp`はFOVカウントincident生成を担当せず、`FrameStateMgmt`では設定を追加しても単独Person検出のincidentは0件だった。FOV/区域違反の正式incident確認には、既存の`apps/dev_example/main_dev_example_app.py`を別サービスとして起動する必要がある。warehouse設定への未使用なFOV項目追加は取り消した。
+- 2026-09-12追記10: `compose.local.yml`へ`vss-behavior-analytics-dev-example`サービスを追加し、DevExampleAppを任意起動できるようにした。RT-CV localのイベント間隔を0.5秒にした検証用ストリームでは、sensor `konro-fov-fast`に対するFOV count violation incident生成（BAログで複数件）を確認した。通常の5秒間隔ではFOVのexpiration window（1秒）を超えるため、incidentを発生させるには入力頻度またはルール窓の調整が必要。
+- 2026-09-12追記11: Dev Example設定の`fovCountViolationIncidentExpirationWindow`を10秒へ変更し、通常のRT-CV周期（約5秒）でも連続検出を許容するデモ向け設定にした。

@@ -69,7 +69,7 @@
 		},
 		{
 			"name": "fovCountViolationIncidentExpirationWindow",
-			"value": "1"
+			"value": "10"
 		},
 		{
 			"name": "fovCountViolationIncidentObjectType",

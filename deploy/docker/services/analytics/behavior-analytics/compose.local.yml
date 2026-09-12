@@ -31,3 +31,14 @@ services:
       BA_BRIDGE_SOURCE_TOPIC: ${BA_BRIDGE_SOURCE_TOPIC:-ds-perception}
       BA_BRIDGE_TARGET_TOPIC: ${BA_BRIDGE_TARGET_TOPIC:-mdx-raw}
     command: ["python3", "apps/adapters/json_to_protobuf.py"]
+
+  # Optional incident-rule path. It uses the repository's public DevExampleApp
+  # and a separate consumer group, so warehouse behavior analytics can run too.
+  vss-behavior-analytics-dev-example:
+    image: vss-behavior-analytics-local:dev
+    container_name: vss-behavior-analytics-dev-example
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      - ../../../../../services/analytics/behavior-analytics/configs/dev_example_config.json:/resources/vss-behavior-analytics-config.json:ro
+    command: ["python3", "apps/dev_example/main_dev_example_app.py", "--config", "/resources/vss-behavior-analytics-config.json"]
