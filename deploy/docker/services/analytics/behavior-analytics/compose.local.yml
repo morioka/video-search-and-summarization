@@ -1,0 +1,33 @@
+# License-free development override for vss-behavior-analytics.
+# Use this file instead of compose.yml when the NVIDIA registry image is not
+# available. The application still requires the configured Kafka/Redis/MQTT
+# broker at runtime.
+
+services:
+  vss-behavior-analytics-local:
+    build:
+      context: ../../../../../services/analytics/behavior-analytics
+      dockerfile: docker/Dockerfile.local
+    image: vss-behavior-analytics-local:dev
+    container_name: vss-behavior-analytics-local
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      - ../../../../../services/analytics/behavior-analytics/configs/warehouse_2d_config.json:/resources/vss-behavior-analytics-config.json:ro
+    command: ["python3", "apps/analytics/main_analytics_2d_app.py", "--config", "/resources/vss-behavior-analytics-config.json"]
+
+  # RT-CV local emits JSON while BA consumes nvSchema.Frame protobufs.
+  # Keep the adapter separate so either side can be replaced independently.
+  vss-behavior-analytics-json-bridge:
+    build:
+      context: ../../../../../services/analytics/behavior-analytics
+      dockerfile: docker/Dockerfile.local
+    image: vss-behavior-analytics-local:dev
+    container_name: vss-behavior-analytics-json-bridge
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      BA_BRIDGE_KAFKA: ${BA_BRIDGE_KAFKA:-localhost:9092}
+      BA_BRIDGE_SOURCE_TOPIC: ${BA_BRIDGE_SOURCE_TOPIC:-ds-perception}
+      BA_BRIDGE_TARGET_TOPIC: ${BA_BRIDGE_TARGET_TOPIC:-mdx-raw}
+    command: ["python3", "apps/adapters/json_to_protobuf.py"]

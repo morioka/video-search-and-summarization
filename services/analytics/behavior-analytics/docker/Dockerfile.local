@@ -1,0 +1,36 @@
+# SPDX-FileCopyrightText: Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+# License-free development image for the Python behavior-analytics code.
+# This intentionally does not include DeepStream, CUDA, NGC runtime layers,
+# or NVIDIA's internal metadata tooling. Upstream perception and inference
+# services remain separate dependencies.
+
+FROM python:3.13-slim-bookworm
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
+WORKDIR /behavior-analytics
+
+# rtree/pyproj wheels normally cover their native dependencies, while
+# libspatialindex keeps source installs functional on architectures without
+# a matching wheel.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libspatialindex6 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY pyproject.toml setup.py Pipfile Pipfile.lock 3rdParty_Licenses.md ./
+COPY src ./src
+COPY apps ./apps
+COPY configs ./configs
+
+RUN python -m pip install --upgrade pip setuptools wheel \
+    && python -m pip install .
+
+RUN useradd --create-home --uid 1000 appuser \
+    && chown -R appuser:appuser /behavior-analytics
+USER appuser
+
+CMD ["python3", "apps/analytics/main_analytics_2d_app.py", "--config", "/resources/vss-behavior-analytics-config.json"]

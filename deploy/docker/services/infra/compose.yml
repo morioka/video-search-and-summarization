@@ -145,7 +145,8 @@ services:
       DEFAULT_REPLICATION_FACTOR: "1"
       BOOTSTRAP_HOST: localhost
       KAFKA_PORT: 9092
-      KAFKA_TOPICS: '[{"name": "mdx-raw"},
+      KAFKA_TOPICS: '[{"name": "ds-perception"},
+        {"name": "mdx-raw"},
         {"name": "mdx-bev"},
         {"name": "mdx-space-utilization"},
         {"name": "mdx-alerts"},
@@ -253,7 +254,8 @@ services:
       BOOTSTRAP_HOST: localhost
       KAFKA_PORT: 9092
       REDIS_PORT: 6379
-      KAFKA_TOPICS: '[{"name": "mdx-raw"},
+      KAFKA_TOPICS: '[{"name": "ds-perception"},
+        {"name": "mdx-raw"},
         {"name": "mdx-bev"},
         {"name": "mdx-space-utilization"},
         {"name": "mdx-alerts"},

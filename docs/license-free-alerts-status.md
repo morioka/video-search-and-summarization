@@ -135,3 +135,23 @@ docker compose --env-file developer-profiles/dev-profile-lvs/generated.env \
 ```
 - 保存動画検索の`preflight.py`は、VST `127.0.0.1:31000` が未起動のため停止した。RT-VLM/Alert経路の障害ではなく、VST/NVStreamer起動が次の前提条件である。
 - 停止済み`vss-vios-nvstreamer-lvs`を再起動すると sensor API は`200`になったが、`/vst/api/v1/storage/timelines`は`404`（storage adaptor未提供）で、保存動画検索の前提は未充足。ストリーム一覧も0件。
+
+### 2026-09-11 behavior-analytics と skills の確認
+
+- 現チェックアウトには`skills/operations/`ディレクトリは存在せず、`skills/vss-*`構成になっている。本家最新版で運用系スキルの配置が変更されている可能性があるため、最新版との差分確認を別途行う。
+- `skills/`配下の`vss-*`はクライアントアプリ本体ではなく、AgentがAPIやサービスを操作するためのスキル定義・手順書である。実行可否は呼び出し先サービスの実装に依存する。
+- `vss-manage-alerts`、`vss-manage-video-io-storage`、`vss-setup-video-analytics-api`、`vss-ask-video`、`vss-summarize-video`、`vss-generate-video-report`は、現在のローカル互換サービスで基本経路を利用できる。
+- `vss-search-archive`と`vss-generate-video-report-rag`はElasticsearch、Storage、Embedding/RAGの構成に依存し、基本機能と本家完全互換を分けて扱う。
+- `vss-query-analytics`と`vss-setup-behavior-analytics`はBehavior AnalyticsのKafka入力を前提とする。Behavior Analytics本体のCompose/Dockerfileは現在もNVIDIAレジストリイメージと内部ビルドURLに依存しており、license-free経路には未接続。
+- `vss-deploy-detection-tracking-2d/3d`、`vss-deploy-dense-captioning`、`vss-deploy-video-embedding`などのデプロイ系スキルは、DeepStream/NVIDIAモデル/NVStreamer依存が残るため、現状のlicense-free構成では未対応または部分対応。
+- Behavior Analyticsの分析ロジック自体はPython/NumPy/OpenCV等でCPU実行可能だが、Kafka/Redis/MQTT、必要に応じたTriton、上流の物体検出が別途必要。GPUはBehavior Analytics固有ではなく、主に上流推論・VLM側で要求される。
+- Behavior Analytics用の`services/analytics/behavior-analytics/docker/Dockerfile.local`と`deploy/docker/services/analytics/behavior-analytics/compose.local.yml`を追加した。`python:3.13-slim-bookworm`ベースでNVIDIA/NGC内部ツールを使わずにビルドでき、`vss-behavior-analytics-local:dev`のビルドと主要依存のimportを確認済み。次回はKafka接続下でPlaybackまたは2Dアプリを実行する。
+- 2026-09-12: 公開Kafka（`apache/kafka:3.9.0`）へwarehouse 2D playbackデータを投入し、CPU版2D AnalyticsをE2E実行した。`mdx-behavior`と`mdx-incidents`へのprotobuf出力を確認し、NVIDIAイメージなしで分析処理が動作した。元設定に`incidents`トピック定義が欠落していたため追加修正した。`mdx-events`は今回のデータ条件では出力なし。
+- 2026-09-12追記: RT-CV localのJSONイベントとBA入力のprotobuf契約を接続する`apps/adapters/json_to_protobuf.py`を追加。公開Kafka上で`ds-perception`→`mdx-raw`の変換を実データで確認した。`compose.local.yml`にはアダプター用サービスも追加済み。次はRT-CV local、アダプター、CPU版2D Analyticsを同時起動し、実動画由来の検出からbehavior/incidentまで通す。
+- 2026-09-12追記2: `konro_inspection.mp4`をRT-CV localのdemo検出器へ登録し、RT-CV JSON→protobufアダプター→CPU版2D Analyticsを同時起動した。`ds-perception`、`mdx-raw`、`mdx-behavior`への出力と、BAログのbehavior生成（sensor `konro-e2e`）を確認。warehouse設定では単独のPerson検出に対するincident条件が成立せず、incident 生成は0件だった。検証用コンテナは停止・削除済み。
+- 2026-09-12追記3: BAは`mdx-raw`だけでなく`mdx-notification`等の設定済みトピックもconsumer初期化時に要求する。公開Kafkaを単独起動する場合は、設定に列挙された全トピックを先に作成する必要がある。本番相当のinfra Composeには既存の`vss-kafka-topics`初期化サービスがあるため、そちらを優先して利用する。
+- 2026-09-12追記4: RT-CV localのJSON中間トピック`ds-perception`がinfra Kafka初期化リストに含まれていなかったため、`deploy/docker/services/infra/compose.yml`の2つのトピック定義へ追加した。既存Kafkaを再作成する際に自動作成される。
+- 2026-09-12追記5: 既存Kafkaを停止状態から起動した直後にBAを立ち上げると、brokerがhealthyになるまでconsumer割り当てが遅延する。BA側のEOF/FATALはこの初期化競合時に発生し得るため、再現手順ではKafka healthと`vss-kafka-topics`完了を待ってからBA/アダプターを起動する。
+- 2026-09-12追記6: 上記の起動順序を`deploy/docker/scripts/start-license-free-behavior-analytics.sh`へ実装した。Kafka health、topic初期化コンテナの終了コードを確認してからCPU版BAとJSONアダプターをCompose起動する。
+- 2026-09-12追記7: 起動スクリプトを実行し、既存Kafkaのhealth確認後に`vss-behavior-analytics-local`と`vss-behavior-analytics-json-bridge`が起動し、BA consumerのpartition割り当てを確認した。イメージのビルドは起動時に行わず、事前ビルド済み`vss-behavior-analytics-local:dev`を使用する。
+- 2026-09-12追記8: 起動スクリプトで立ち上げた常駐BA経路へ、再起動後のRT-CV localから`konro_inspection.mp4`を登録した。`ds-perception`→`mdx-raw`のoffset進行と、BAログのsensor `konro-live-ba-3`に対するbehavior生成（複数batch）を確認。warehouse 2D設定ではincidentは0件だが、動画入力から分析出力までの主要経路は成立した。
